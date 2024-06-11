@@ -1,9 +1,11 @@
 {
   "compilerOptions": {
+    "esModuleInterop": true,
+    "outDir": "dist",
+    "baseUrl": ".",
     "module": "commonjs",
     "target": "es6",
     "lib": ["es6"],
-    "outDir": "dist",
     "sourceMap": true
   },
   "exclude": [
