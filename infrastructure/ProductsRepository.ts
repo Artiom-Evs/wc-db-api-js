@@ -1,8 +1,7 @@
 import moment from "moment";
-import { Product } from "../schemas";
+import { Image, Product } from "../schemas";
 import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
-import { QueryResult } from "mysql2";
 
 const GET_ALL_QUERY = `
 CALL GetProductsV2(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
@@ -10,6 +9,16 @@ CALL GetProductsV2(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 const GET_BY_ID_QUERY = `
 CALL GetProductByID(?);
+`;
+
+const createGetProductsImagesQuery = (ids: number[]) => `
+SELECT 
+    ID AS id, 
+    post_parent AS parent_id, 
+    post_title AS name, 
+    guid AS src
+FROM wp_posts
+WHERE post_parent IN (${ids.map(() => "?").join(", ")}) AND post_mime_type LIKE "image/%";
 `;
 
 interface GetProductsOptions {
@@ -53,24 +62,30 @@ class ProductsRepository extends RepositoryBase {
 
         const products = rows as Product[];
 
+        const productIds = products.map(p => p.id);
+        const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery(productIds), productIds);
+        
         products.forEach(product => {
             product.type = "simple";
             product.price = product.price != null ? parseInt(product.price as any) : null;
             product.created = moment(product.created).format("yyyy-MM-DD hh:mm:ss");
             product.modified = moment(product.modified).format("yyyy-MM-DD hh:mm:ss");
-            product.images = [];
             product.categories = [];
             product.attributes = [];
             product.default_attribute = [];
             product.variations = [];
+
+            product.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
         });
-        
+
         return products;
     }
 
     public async getById(id: number): Promise<Product | null> {
-        const [rows] = await this._pool.execute(GET_BY_ID_QUERY, [ id ]);
-        const products = rows as Product[];
+        const [[productRows]] = await this._pool.execute<[any[]]>(GET_BY_ID_QUERY, [ id ]);
+        const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery([id]), [id]);
+
+        const products = productRows as Product[];
         const product = products && Array.isArray(products) && products.length > 0 ? products[0] : null;
 
         if (product) {
@@ -78,11 +93,12 @@ class ProductsRepository extends RepositoryBase {
             product.price = product.price != null ? parseInt(product.price as any) : null;
             product.created = moment(product.created).format("yyyy-MM-DD hh:mm:ss");
             product.modified = moment(product.modified).format("yyyy-MM-DD hh:mm:ss");
-            product.images = [];
             product.categories = [];
             product.attributes = [];
             product.default_attribute = [];
             product.variations = [];
+
+            product.images = imageRows as Image[];
         }
 
         return product;
