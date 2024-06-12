@@ -1,4 +1,4 @@
-import mysql from 'mysql2/promise';
+import mysql, { Pool } from 'mysql2/promise';
 
 const host = process.env.WP_DB_HOST;
 const database = process.env.WP_DB_NAME;
@@ -15,7 +15,7 @@ if (!user)
 if (password === null || password === null)
     throw new Error(`"WP_DB_PASSWORD" environment variable should be defined.`);
 
-const pool = mysql.createPool({
+const pool: Pool = mysql.createPool({
   host,
   port,
   database,
