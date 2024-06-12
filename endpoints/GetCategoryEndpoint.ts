@@ -1,6 +1,15 @@
 import { z } from "zod";
 import { defaultEndpointsFactory } from "express-zod-api";
 import { Category, CategorySchema } from "../schemas";
+import pool from "../infrastructure/DbConnectionPool";
+
+const query = `
+select tt.term_id AS id, tt.parent AS parent_id, t.name, t.slug, tt.description, tt.count
+from wp_term_taxonomy as tt
+join wp_terms as t on t.term_id = tt.term_id
+where tt.taxonomy = "product_cat"
+    AND tt.term_id = ?
+`;
 
 export const GetCategoryEndpoint = defaultEndpointsFactory.build({
     method: "get",
@@ -13,26 +22,9 @@ export const GetCategoryEndpoint = defaultEndpointsFactory.build({
     handler: async ({ input, options, logger }) => {
         logger.debug("Requested parameters:", input);
 
-        const categories: Category[] = [
-            {
-                id: 1,
-                parent_id: 0,
-                name: "Some Category 1", 
-                slug: "some-categories-1",
-                description: "",
-                count: 10
-            },
-            {
-                id: 2,
-                parent_id: 1,
-                name: "Some Parent Category 1", 
-                slug: "some-parent-categories-1",
-                description: "",
-                count: 10
-            }
-        ];
-
-        const category = categories.find(c => c.id == input.id) ?? null;
+        const [rows] = await pool.execute(query, [ input.id ]);
+        const categories = rows as Category[];
+        const category = categories && Array.isArray(categories) && categories.length > 0 ? categories[0] : null;
         return { item: category };
     },
 });

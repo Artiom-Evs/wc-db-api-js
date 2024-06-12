@@ -2,12 +2,12 @@
   "name": "wc-db-api-js",
   "version": "0.0.0",
   "description": "wc-db-api-js",
-  "main": "app.js",
+  "main": "dist/app.js",
   "author": {
     "name": ""
   },
   "scripts": {
-    "dev": "npm run build & node dist/app",
+    "dev": "npm run build & node --env-file .env.local .",
     "build": "tsc --build",
     "clean": "tsc --build --clean"
   },
@@ -31,6 +31,7 @@
   "dependencies": {
     "express": "^4.19.2",
     "express-zod-api": "^19.2.2",
+    "mysql2": "^3.10.0",
     "typescript": "^5.4.5"
   }
 }
