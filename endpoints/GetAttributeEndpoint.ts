@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { defaultEndpointsFactory } from "express-zod-api";
-import { ProductAttribute, ProductAttributeSchema } from "../schemas";
+import { Attribute, AttributeSchema } from "../schemas";
+import attributesRepository from "../infrastructure/AttributesRepository";
 
 export const GetAttributeEndpoint = defaultEndpointsFactory.build({
     method: "get",
@@ -8,31 +9,13 @@ export const GetAttributeEndpoint = defaultEndpointsFactory.build({
         id: z.string().transform((s) => parseInt(s))
     }),
     output: z.object({
-        item: z.nullable(ProductAttributeSchema)
+        item: z.nullable(AttributeSchema)
     }),
     handler: async ({ input, options, logger }) => {
         logger.debug("Requested parameters:", input);
 
-        const attributes: ProductAttribute[] = [
-            {
-                id: 1,
-                name: "Supplier",
-                slug: "pa_supplier",
-                visible: true,
-                variation: false,
-                options: []
-            },
-            {
-                id: 2,
-                name: "Color",
-                slug: "pa_color",
-                visible: true,
-                variation: true,
-                options: []
-            }
-        ]
+        const attribute = await attributesRepository.getById(input.id);
 
-        const attribute = attributes.find(a => a.id == input.id) ?? null;
         return { item: attribute };
     },
 });

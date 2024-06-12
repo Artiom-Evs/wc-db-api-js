@@ -4,6 +4,7 @@ export type Product = z.infer<typeof ProductSchema>;
 export type Variation = z.infer<typeof VariationSchema>;
 export type Image = z.infer<typeof ImageSchema>;
 export type Category = z.infer<typeof CategorySchema>;
+export type Attribute = z.infer<typeof AttributeSchema>;
 export type ProductAttribute = z.infer<typeof ProductAttributeSchema>;
 export type VariationAttribute = z.infer<typeof VariationAttributeSchema>;
 
@@ -20,6 +21,12 @@ export const CategorySchema = z.object({
     slug: z.string().min(1),
     description: z.string(),
     count: z.number()
+});
+
+export const AttributeSchema = z.object({
+    id: z.number(),
+    name: z.string().min(1),
+    slug: z.string().min(1)
 });
 
 export const VariationAttributeSchema = z.object({
