@@ -46,8 +46,8 @@ export const VariationSchema = z.object({
     description: z.string(),
     stock_quantity: z.number(),
     price: z.number(),
-    created: z.date(),
-    modified: z.date(),
+    created: z.string().date(),
+    modified: z.string().date(),
     images: z.array(ImageSchema),
     attributes: z.array(VariationAttributeSchema)
 });
@@ -61,8 +61,8 @@ export const ProductSchema = z.object({
     type: z.enum([ "simple", "variable" ]),
     stock_quantity: z.number(),
     price: z.number(),
-    created: z.date(),
-    modified: z.date(),
+    created: z.string().date(),
+    modified: z.string().date(),
     categories: z.array(CategorySchema),
     images: z.array(ImageSchema),
     attributes: z.array(ProductAttributeSchema),
