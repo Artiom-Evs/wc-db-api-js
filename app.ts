@@ -1,3 +1,5 @@
+import { GetAttributeEndpoint } from "./endpoints/GetAttributeEndpoint";
+import { GetAttributesEndpoint } from "./endpoints/GetAttributesEndpoint";
 import { GetCategoryEndpoint } from "./endpoints/GetCategoryEndpoint";
 import { GetCategoriesEndpoint } from "./endpoints/GetCategoriesEndpoint";
 import { GetProductEndpoint } from "./endpoints/GetProductEndpoint";
@@ -27,6 +29,10 @@ const routing: Routing = {
             categories: {
                 ":id": GetCategoryEndpoint,
                 "": GetCategoriesEndpoint
+            },
+            attributes: {
+                ":id": GetAttributeEndpoint,
+                "": GetAttributesEndpoint
             }
         }
     }
