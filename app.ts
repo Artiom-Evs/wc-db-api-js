@@ -1,3 +1,5 @@
+import { GetCategoryEndpoint } from "./endpoints/GetCategoryEndpoint";
+import { GetCategoriesEndpoint } from "./endpoints/GetCategoriesEndpoint";
 import { GetProductEndpoint } from "./endpoints/GetProductEndpoint";
 import { GetProductsEndpoint } from "./endpoints/GetProductsEndpoint";
 import { createConfig } from "express-zod-api";
@@ -21,6 +23,10 @@ const routing: Routing = {
             products: {
                 ":id": GetProductEndpoint,
                 "": GetProductsEndpoint
+            },
+            categories: {
+                ":id": GetCategoryEndpoint,
+                "": GetCategoriesEndpoint
             }
         }
     }
