@@ -1,5 +1,5 @@
 import moment from "moment";
-import { Image, Product } from "../schemas";
+import { Category, Image, Product } from "../schemas";
 import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
 
@@ -19,6 +19,23 @@ SELECT
     guid AS src
 FROM wp_posts
 WHERE post_parent IN (${ids.map(() => "?").join(", ")}) AND post_mime_type LIKE "image/%";
+`;
+
+const createGetProductsCategoriesQuery = (ids: number[]) => `
+SELECT
+    TR.object_id, 
+    T.term_id AS id, 
+    T.name, 
+    T.slug, 
+    TT.parent AS parent_id, 
+    TT.description, 
+    TT.count
+FROM wp_term_relationships AS TR
+JOIN wp_term_taxonomy AS TT 
+    ON TR.term_taxonomy_id = TT.term_taxonomy_id
+JOIN wp_terms AS T 
+	ON TT.term_id = T.term_id
+WHERE TR.object_id IN (${ids.map(() => "?").join(", ")}) AND TT.taxonomy = "product_cat";
 `;
 
 interface GetProductsOptions {
@@ -61,20 +78,20 @@ class ProductsRepository extends RepositoryBase {
         ]);
 
         const products = rows as Product[];
-
         const productIds = products.map(p => p.id);
         const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery(productIds), productIds);
+        const [categoryRows] = await this._pool.execute<any[]>(createGetProductsCategoriesQuery(productIds), productIds);
         
         products.forEach(product => {
             product.type = "simple";
             product.price = product.price != null ? parseInt(product.price as any) : null;
             product.created = moment(product.created).format("yyyy-MM-DD hh:mm:ss");
             product.modified = moment(product.modified).format("yyyy-MM-DD hh:mm:ss");
-            product.categories = [];
             product.attributes = [];
             product.default_attribute = [];
             product.variations = [];
 
+            product.categories = categoryRows.filter(c => c.object_id === product.id) as Category[];
             product.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
         });
 
@@ -84,6 +101,7 @@ class ProductsRepository extends RepositoryBase {
     public async getById(id: number): Promise<Product | null> {
         const [[productRows]] = await this._pool.execute<[any[]]>(GET_BY_ID_QUERY, [ id ]);
         const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery([id]), [id]);
+        const [categoryRows] = await this._pool.execute<any[]>(createGetProductsCategoriesQuery([id]), [id]);
 
         const products = productRows as Product[];
         const product = products && Array.isArray(products) && products.length > 0 ? products[0] : null;
@@ -93,11 +111,11 @@ class ProductsRepository extends RepositoryBase {
             product.price = product.price != null ? parseInt(product.price as any) : null;
             product.created = moment(product.created).format("yyyy-MM-DD hh:mm:ss");
             product.modified = moment(product.modified).format("yyyy-MM-DD hh:mm:ss");
-            product.categories = [];
             product.attributes = [];
             product.default_attribute = [];
             product.variations = [];
 
+            product.categories = categoryRows as Category[];
             product.images = imageRows as Image[];
         }
 
