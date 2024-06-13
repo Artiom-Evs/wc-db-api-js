@@ -10,9 +10,13 @@ import { createConfig } from "express-zod-api";
 import { Routing } from "express-zod-api";
 import { createServer } from "express-zod-api";
 
+const port = process.env.APP_HTTP_PORT ? parseInt(process.env.APP_HTTP_PORT) : null;
+if (!port)
+    throw new Error(`"APP_HTTP_PORT" environment variable should be defined.`);
+
 const config = createConfig({
     server: {
-        listen: 80
+        listen: port
     },
     cors: true,
     logger: { 
