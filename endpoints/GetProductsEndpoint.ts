@@ -26,7 +26,7 @@ export const GetProductsEndpoint = defaultEndpointsFactory.build({
     handler: async ({ input, options, logger }) => {
         logger.debug("Requested parameters:", input);
 
-        const products = await productsRepository.getAll(input, logger);
+        const products = await productsRepository.getAll(input);
         
         return { items: products };
     },

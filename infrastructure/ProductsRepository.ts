@@ -1,7 +1,9 @@
 import moment from "moment";
-import { Category, Image, Product, Variation } from "../schemas";
+import { Attribute, Category, Image, Product, Variation } from "../schemas";
 import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
+import { unserialize } from "php-serialize";
+import attributesRepository from "./AttributesRepository";
 
 const GET_ALL_QUERY = `
 CALL GetProductsV2(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
@@ -87,7 +89,7 @@ class ProductsRepository extends RepositoryBase {
         attribute = "",
         attribute_term = "",
         search = ""
-    }: GetProductsOptions, logger?: any): Promise<Product[]> {
+    }: GetProductsOptions): Promise<Product[]> {
 
         const [[rows]] = await this._pool.execute<[any[]]>(GET_ALL_QUERY, [
             per_page,
@@ -109,13 +111,16 @@ class ProductsRepository extends RepositoryBase {
         const variationIds = variationRows.map(v => v.id);
         const [imageRows] = await this._pool.query<any[]>(createGetProductsImagesQuery([productIds, ...variationIds]), [productIds, ...variationIds]);
 
+        const globalAttributes: Attribute[] = await attributesRepository.getAll();
+            
         products.forEach(product => {
+            this.initProductAttributes(product, globalAttributes);
+            
             product.type = variationRows.length === 0 ? "simple" : "variable";
             product.price = product.price != null ? parseInt(product.price as any) : null;
             product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
-            product.attributes = [];
-            product.default_attribute = [];
-            
+            product.default_attributes = [];
+
             product.categories = categoryRows.filter(c => c.object_id === product.id) as Category[];
             product.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
             product.variations = variationRows as Variation[];
@@ -128,8 +133,6 @@ class ProductsRepository extends RepositoryBase {
             });
         });
 
-        logger?.debug("Finishing");
-
         return products;
     }
 
@@ -140,6 +143,8 @@ class ProductsRepository extends RepositoryBase {
         const variationIds = variationRows.map(v => v.id);
         const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery([id, ...variationIds]), [id, ...variationIds]);
 
+        console.log("variations count:", variationRows.length);
+
         const products = productRows as Product[];
         const product = products && Array.isArray(products) && products.length > 0 ? products[0] : null;
 
@@ -147,8 +152,14 @@ class ProductsRepository extends RepositoryBase {
             product.type = variationRows.length === 0 ? "simple" : "variable";
             product.price = product.price != null ? parseInt(product.price as any) : null;
             product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
-            product.attributes = [];
-            product.default_attribute = [];
+
+            console.log("Attributes:", (product as any).attributes);
+            console.log("Default attributes:", (product as any).default_attributes);
+            
+            const globalAttributes: Attribute[] = await attributesRepository.getAll();
+            this.initProductAttributes(product, globalAttributes);
+
+            product.default_attributes = [];
             
             product.categories = categoryRows as Category[];
             product.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
@@ -158,13 +169,38 @@ class ProductsRepository extends RepositoryBase {
                 variation.price = variation.price != null ? parseInt(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
                 variation.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
+
                 variation.attributes = [];
             });
         }
 
         return product;
     }
-}
 
+    private initProductAttributes(product: Product, globalAttributes: Attribute[]): void {
+        if (product.attributes) {
+            const attributes = Object.values(unserialize((product as any).attributes));
+            
+            product.attributes = attributes.map((a: any) => {
+                const gAttribute = globalAttributes.find(ga => `pa_${ga.slug}` === a.name);
+                if (!gAttribute)
+                    throw new Error(`Product with ID ${product.id} contains unexisted attribute "${a.name}".`);
+                
+                return {
+                    id: gAttribute.id,
+                    name: gAttribute.name,
+                    slug: gAttribute.slug,
+                    visible: !!a.is_visible,
+                    variation: !!a.is_variation,
+                    options: []
+                }
+            });
+        }
+        
+        product.attributes ??= [];
+        
+    }
+}
+    
 const productsRepository = new ProductsRepository(pool);
 export default productsRepository;

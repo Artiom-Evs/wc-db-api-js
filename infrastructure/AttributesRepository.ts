@@ -24,7 +24,7 @@ WHERE tt.taxonomy = CONCAT("pa_",
     LIMIT 1))
 `;
 
-class AttributesRepository extends RepositoryBase {
+export class AttributesRepository extends RepositoryBase {
     public async getAll(): Promise<Attribute[]> {
         const [rows] = await this._pool.execute(GET_ALL_QUERY, []);
         const attributes = rows as Attribute[];

@@ -80,6 +80,6 @@ export const ProductSchema = z.object({
     categories: z.array(CategorySchema),
     images: z.array(ImageSchema),
     attributes: z.array(ProductAttributeSchema),
-    default_attribute: z.array(VariationAttributeSchema),
+    default_attributes: z.array(VariationAttributeSchema),
     variations: z.array(VariationSchema)
 });
