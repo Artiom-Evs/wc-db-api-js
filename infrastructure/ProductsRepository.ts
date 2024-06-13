@@ -107,7 +107,7 @@ class ProductsRepository extends RepositoryBase {
         const [categoryRows] = await this._pool.execute<any[]>(createGetProductsCategoriesQuery(productIds), productIds);
         const [variationRows] = await this._pool.execute<any[]>(createGetProductsVariationsQuery(productIds), productIds);
         const variationIds = variationRows.map(v => v.id);
-        const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery([productIds, ...variationIds]), [productIds, ...variationIds]);
+        const [imageRows] = await this._pool.query<any[]>(createGetProductsImagesQuery([productIds, ...variationIds]), [productIds, ...variationIds]);
 
         products.forEach(product => {
             product.type = variationRows.length === 0 ? "simple" : "variable";
