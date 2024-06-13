@@ -1,3 +1,4 @@
+import { GetRootEndpoint } from "./endpoints/GetRootEndpoint";
 import { GetAttributeEndpoint } from "./endpoints/GetAttributeEndpoint";
 import { GetAttributesEndpoint } from "./endpoints/GetAttributesEndpoint";
 import { GetAttributeTermsEndpoint } from "./endpoints/GetAttributeTermsEndpoint";
@@ -11,7 +12,7 @@ import { createServer } from "express-zod-api";
 
 const config = createConfig({
     server: {
-        listen: 8090
+        listen: 80
     },
     cors: true,
     logger: { 
@@ -39,7 +40,8 @@ const routing: Routing = {
                 "": GetAttributesEndpoint
             }
         }
-    }
+    },
+    "": GetRootEndpoint
 };
 
 createServer(config, routing);
