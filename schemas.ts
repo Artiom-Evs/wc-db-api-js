@@ -48,7 +48,7 @@ export const ProductAttributeSchema = z.object({
     slug: z.string().min(1),
     visible: z.boolean(),    
     variation: z.boolean(),
-    options: z.array(VariationAttributeSchema)
+    options: z.array(AttributeTermSchema)
 });
 
 export const VariationSchema = z.object({

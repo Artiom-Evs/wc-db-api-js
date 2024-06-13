@@ -1,6 +1,6 @@
 import RepositoryBase from "./RepositoryBase";
 import pool from "./DbConnectionPool";
-import { Attribute, AttributeTerm } from "../schemas";
+import { Attribute, AttributeTerm, VariationAttribute } from "../schemas";
 
 const GET_ALL_QUERY = `
 SELECT attribute_id AS id, attribute_name AS name, attribute_label AS slug
@@ -24,7 +24,29 @@ WHERE tt.taxonomy = CONCAT("pa_",
     LIMIT 1))
 `;
 
-export class AttributesRepository extends RepositoryBase {
+
+
+const createGetProductsAttributeTermsQuery = (ids: number[]) => `
+SELECT 
+    A.product_or_parent_id AS parent_id, 
+    A.taxonomy AS attribute_slug, 
+    T.term_id AS id,
+    T.name,
+    T.slug
+FROM wp_wc_product_attributes_lookup AS A 
+JOIN wp_terms AS T ON A.term_id = T.term_id
+WHERE product_or_parent_id IN (${ids.map(() => "?").join(", ")});;
+`;
+
+export interface DBProductAttributeTerm {
+    id: number,
+    name: string, 
+    slug: string,
+    parent_id: number,
+    attribute_slug: string,
+}
+
+class AttributesRepository extends RepositoryBase {
     public async getAll(): Promise<Attribute[]> {
         const [rows] = await this._pool.execute(GET_ALL_QUERY, []);
         const attributes = rows as Attribute[];
@@ -45,6 +67,13 @@ export class AttributesRepository extends RepositoryBase {
         const terms = rows as AttributeTerm[];        
 
         return terms;
+    }
+
+    public async getProductsAttributeTerms(productIds: number[]): Promise<DBProductAttributeTerm[]> {
+        const query = createGetProductsAttributeTermsQuery(productIds);
+        const [rows] = await this._pool.execute(query, productIds);
+
+        return rows as DBProductAttributeTerm[];
     }
 }
 

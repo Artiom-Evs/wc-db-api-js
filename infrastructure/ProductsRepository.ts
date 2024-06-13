@@ -1,9 +1,9 @@
 import moment from "moment";
-import { Attribute, Category, Image, Product, Variation } from "../schemas";
+import { Attribute, VariationAttribute, Category, Image, Product, Variation } from "../schemas";
 import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
 import { unserialize } from "php-serialize";
-import attributesRepository from "./AttributesRepository";
+import attributesRepository, { DBProductAttributeTerm } from "./AttributesRepository";
 
 const GET_ALL_QUERY = `
 CALL GetProductsV2(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
@@ -112,9 +112,10 @@ class ProductsRepository extends RepositoryBase {
         const [imageRows] = await this._pool.query<any[]>(createGetProductsImagesQuery([productIds, ...variationIds]), [productIds, ...variationIds]);
 
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
+        const attributesTerms = await attributesRepository.getProductsAttributeTerms(productIds);
             
         products.forEach(product => {
-            this.initProductAttributes(product, globalAttributes);
+            this.initProductAttributes(product, globalAttributes, attributesTerms);
             
             product.type = variationRows.length === 0 ? "simple" : "variable";
             product.price = product.price != null ? parseInt(product.price as any) : null;
@@ -157,7 +158,9 @@ class ProductsRepository extends RepositoryBase {
             console.log("Default attributes:", (product as any).default_attributes);
             
             const globalAttributes: Attribute[] = await attributesRepository.getAll();
-            this.initProductAttributes(product, globalAttributes);
+            const attributesTerms = await attributesRepository.getProductsAttributeTerms([ product.id ]);
+
+            this.initProductAttributes(product, globalAttributes, attributesTerms);
 
             product.default_attributes = [];
             
@@ -177,12 +180,14 @@ class ProductsRepository extends RepositoryBase {
         return product;
     }
 
-    private initProductAttributes(product: Product, globalAttributes: Attribute[]): void {
+    private initProductAttributes(product: Product, globalAttributes: Attribute[], attributesTerms: DBProductAttributeTerm[]): void {
         if (product.attributes) {
             const attributes = Object.values(unserialize((product as any).attributes));
             
             product.attributes = attributes.map((a: any) => {
                 const gAttribute = globalAttributes.find(ga => `pa_${ga.slug}` === a.name);
+                const options = attributesTerms.filter(t => t.parent_id === product.id && t.attribute_slug === a.name);
+
                 if (!gAttribute)
                     throw new Error(`Product with ID ${product.id} contains unexisted attribute "${a.name}".`);
                 
@@ -192,7 +197,7 @@ class ProductsRepository extends RepositoryBase {
                     slug: gAttribute.slug,
                     visible: !!a.is_visible,
                     variation: !!a.is_variation,
-                    options: []
+                    options
                 }
             });
         }
