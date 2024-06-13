@@ -18,6 +18,7 @@ export const GetProductEndpoint = defaultEndpointsFactory.build({
         logger.debug("Requested parameters:", input);
         
         const product = await productsRepository.getById(input.id);
+        logger.debug("Data:", product);
 
         return { item: product };
     },

@@ -1,5 +1,5 @@
 import moment from "moment";
-import { Category, Image, Product } from "../schemas";
+import { Category, Image, Product, Variation } from "../schemas";
 import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
 
@@ -38,6 +38,30 @@ JOIN wp_terms AS T
 WHERE TR.object_id IN (${ids.map(() => "?").join(", ")}) AND TT.taxonomy = "product_cat";
 `;
 
+const createGetProductsVariationsQuery = (ids: number[]) => `
+SELECT 
+    ID AS id, 
+    post_parent AS parent_id, 
+    post_title AS name, 
+    post_name AS slug, 
+    post_date AS created, 
+    post_modified AS modified,
+    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
+    CAST(m2.meta_value AS DECIMAL(4)) AS stock_quantity,
+    m3.meta_value AS sku,
+    m4.meta_value AS variation_image_gallery,
+    m5.meta_value AS description
+FROM wp_posts
+LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
+LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
+LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
+LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "variation_image_gallery"
+LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "_variation_description"
+WHERE post_parent IN (${ids.map(() => "?").join(", ")}) 
+    AND post_type = "product_variation" 
+    AND post_status = "publish";
+`;
+
 interface GetProductsOptions {
     page?: number,
     per_page?: number,
@@ -63,7 +87,8 @@ class ProductsRepository extends RepositoryBase {
         attribute = "",
         attribute_term = "",
         search = ""
-    }: GetProductsOptions): Promise<Product[]> {
+    }: GetProductsOptions, logger?: any): Promise<Product[]> {
+
         const [[rows]] = await this._pool.execute<[any[]]>(GET_ALL_QUERY, [
             per_page,
             per_page * (page - 1),
@@ -79,44 +104,62 @@ class ProductsRepository extends RepositoryBase {
 
         const products = rows as Product[];
         const productIds = products.map(p => p.id);
-        const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery(productIds), productIds);
         const [categoryRows] = await this._pool.execute<any[]>(createGetProductsCategoriesQuery(productIds), productIds);
-        
+        const [variationRows] = await this._pool.execute<any[]>(createGetProductsVariationsQuery(productIds), productIds);
+        const variationIds = variationRows.map(v => v.id);
+        const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery([productIds, ...variationIds]), [productIds, ...variationIds]);
+
         products.forEach(product => {
-            product.type = "simple";
+            product.type = variationRows.length === 0 ? "simple" : "variable";
             product.price = product.price != null ? parseInt(product.price as any) : null;
-            product.created = moment(product.created).format("yyyy-MM-DD hh:mm:ss");
-            product.modified = moment(product.modified).format("yyyy-MM-DD hh:mm:ss");
+            product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
             product.attributes = [];
             product.default_attribute = [];
-            product.variations = [];
-
+            
             product.categories = categoryRows.filter(c => c.object_id === product.id) as Category[];
             product.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
+            product.variations = variationRows as Variation[];
+
+            product.variations.forEach(variation => {
+                variation.price = variation.price != null ? parseInt(variation.price as any) : null;
+                variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
+                variation.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
+                variation.attributes = [];
+            });
         });
+
+        logger?.debug("Finishing");
 
         return products;
     }
 
     public async getById(id: number): Promise<Product | null> {
         const [[productRows]] = await this._pool.execute<[any[]]>(GET_BY_ID_QUERY, [ id ]);
-        const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery([id]), [id]);
         const [categoryRows] = await this._pool.execute<any[]>(createGetProductsCategoriesQuery([id]), [id]);
+        const [variationRows] = await this._pool.execute<any[]>(createGetProductsVariationsQuery([id]), [id]);
+        const variationIds = variationRows.map(v => v.id);
+        const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery([id, ...variationIds]), [id, ...variationIds]);
 
         const products = productRows as Product[];
         const product = products && Array.isArray(products) && products.length > 0 ? products[0] : null;
 
         if (product) {
-            product.type = "simple";
+            product.type = variationRows.length === 0 ? "simple" : "variable";
             product.price = product.price != null ? parseInt(product.price as any) : null;
-            product.created = moment(product.created).format("yyyy-MM-DD hh:mm:ss");
-            product.modified = moment(product.modified).format("yyyy-MM-DD hh:mm:ss");
+            product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
             product.attributes = [];
             product.default_attribute = [];
-            product.variations = [];
-
+            
             product.categories = categoryRows as Category[];
-            product.images = imageRows as Image[];
+            product.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
+            product.variations = variationRows as Variation[];
+
+            product.variations.forEach(variation => {
+                variation.price = variation.price != null ? parseInt(variation.price as any) : null;
+                variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
+                variation.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
+                variation.attributes = [];
+            });
         }
 
         return product;
