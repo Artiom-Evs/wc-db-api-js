@@ -38,12 +38,27 @@ JOIN wp_terms AS T ON A.term_id = T.term_id
 WHERE product_or_parent_id IN (${ids.map(() => "?").join(", ")});;
 `;
 
+const createGetVariationsAttributesQuery= (ids: number[]) => `
+SELECT
+	post_id AS parent_id,
+    SUBSTRING(meta_key, 11) AS slug,
+    meta_value AS option
+FROM wp_postmeta
+WHERE post_id IN (${ids.map(() => "?").join(", ")}) AND meta_key LIKE "attribute_%";
+`;
+
 export interface DBProductAttributeTerm {
     id: number,
     name: string, 
     slug: string,
     parent_id: number,
     attribute_slug: string,
+}
+
+export interface DBVariationAttribute {
+    parent_id: number,
+    slug: string,
+    option: string
 }
 
 class AttributesRepository extends RepositoryBase {
@@ -74,6 +89,13 @@ class AttributesRepository extends RepositoryBase {
         const [rows] = await this._pool.execute(query, productIds);
 
         return rows as DBProductAttributeTerm[];
+    }
+
+    public async getVariationsAttributes(variationIds: number[]): Promise<DBVariationAttribute[]> {
+        const query = createGetVariationsAttributesQuery(variationIds);
+        const [attributeRows] = await this._pool.execute(query, variationIds);
+
+        return attributeRows as DBVariationAttribute[];
     }
 }
 

@@ -3,7 +3,7 @@ import { Attribute, VariationAttribute, Category, Image, Product, Variation } fr
 import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
 import { unserialize } from "php-serialize";
-import attributesRepository, { DBProductAttributeTerm } from "./AttributesRepository";
+import attributesRepository, { DBProductAttributeTerm, DBVariationAttribute } from "./AttributesRepository";
 
 const GET_ALL_QUERY = `
 CALL GetProductsV2(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
@@ -114,6 +114,7 @@ class ProductsRepository extends RepositoryBase {
 
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
         const attributesTerms = await attributesRepository.getProductsAttributeTerms(productIds);
+        const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
 
         products.forEach(product => {
             this.initProductAttributes(product, globalAttributes, attributesTerms);
@@ -131,7 +132,8 @@ class ProductsRepository extends RepositoryBase {
                 variation.price = variation.price != null ? parseInt(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
                 variation.images = imageRows.filter(i => i.parent_id === variation.id) as Image[];
-                variation.attributes = [];
+
+                this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
             });
         });
 
@@ -153,11 +155,9 @@ class ProductsRepository extends RepositoryBase {
             product.price = product.price != null ? parseInt(product.price as any) : null;
             product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
 
-            console.log("Attributes:", (product as any).attributes);
-            console.log("Default attributes:", (product as any).default_attributes);
-
             const globalAttributes: Attribute[] = await attributesRepository.getAll();
             const attributesTerms = await attributesRepository.getProductsAttributeTerms([product.id]);
+            const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
 
             this.initProductAttributes(product, globalAttributes, attributesTerms);
             this.initProductDefaultAttributes(product, globalAttributes, attributesTerms);
@@ -171,7 +171,7 @@ class ProductsRepository extends RepositoryBase {
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
                 variation.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
 
-                variation.attributes = [];
+                this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
             });
         }
 
@@ -228,6 +228,22 @@ class ProductsRepository extends RepositoryBase {
                 option: aTerm.slug
             });
         }
+    }
+
+    private initVariationAttributes(variation: Variation, globalAttributes: Attribute[], variationsAttributes: DBVariationAttribute[]): void {
+        variation.attributes = variationsAttributes.filter(a => a.parent_id === variation.id)
+        .map(a => {
+            const gAttribute = globalAttributes.find(ga => `pa_${ga.slug}` === a.slug);
+            
+            if (!gAttribute)
+                throw new Error(`"${a.slug}" variation attribute does not found in the list of the global attributes.`);
+
+            return {
+                id: gAttribute.id,
+                name: gAttribute.name,
+                option: a.option
+            };
+        })
     }
 }
 
