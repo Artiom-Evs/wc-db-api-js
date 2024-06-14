@@ -13,6 +13,15 @@ const GET_BY_ID_QUERY = `
 CALL GetProductByID(?);
 `;
 
+const createGetImagesByIdsQuery = (ids: number[]) => `
+SELECT 
+    ID AS id, 
+    post_parent AS parent_id, 
+    post_title AS name, 
+    guid AS src
+FROM wp_posts
+WHERE ID IN (${ids.map(() => "?").join(", ")}) AND post_mime_type LIKE "image/%";
+`;
 const createGetProductsImagesQuery = (ids: number[]) => `
 SELECT 
     ID AS id, 
@@ -77,6 +86,13 @@ interface GetProductsOptions {
     search?: string
 }
 
+interface DBImage {
+    id: number,
+    parent_id: number,
+    name: string,
+    src: string
+}
+
 class ProductsRepository extends RepositoryBase {
     public async getAll({
         page = 1,
@@ -111,10 +127,12 @@ class ProductsRepository extends RepositoryBase {
         const variations = variationRows as Variation[];
         const variationIds = variations.map(v => v.id);
         const [imageRows] = await this._pool.query<any[]>(createGetProductsImagesQuery([...productIds, ...variationIds]), [...productIds, ...variationIds]);
-
+        
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
         const attributesTerms = await attributesRepository.getProductsAttributeTerms(productIds);
         const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
+
+        this.initVariationsImages(variations);
 
         products.forEach(product => {
             this.initProductAttributes(product, globalAttributes, attributesTerms);
@@ -131,8 +149,7 @@ class ProductsRepository extends RepositoryBase {
             product.variations.forEach(variation => {
                 variation.price = variation.price != null ? parseInt(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
-                variation.images = imageRows.filter(i => i.parent_id === variation.id) as Image[];
-
+                
                 this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
             });
         });
@@ -144,11 +161,14 @@ class ProductsRepository extends RepositoryBase {
         const [[productRows]] = await this._pool.execute<[any[]]>(GET_BY_ID_QUERY, [id]);
         const [categoryRows] = await this._pool.execute<any[]>(createGetProductsCategoriesQuery([id]), [id]);
         const [variationRows] = await this._pool.execute<any[]>(createGetProductsVariationsQuery([id]), [id]);
-        const variationIds = variationRows.map(v => v.id);
+        const variations = variationRows as Variation[];
+        const variationIds = variations.map(v => v.id);
         const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery([id, ...variationIds]), [id, ...variationIds]);
-
+        
         const products = productRows as Product[];
         const product = products && Array.isArray(products) && products.length > 0 ? products[0] : null;
+
+        await this.initVariationsImages(variations);
 
         if (product) {
             product.type = variationRows.length === 0 ? "simple" : "variable";
@@ -164,13 +184,12 @@ class ProductsRepository extends RepositoryBase {
 
             product.categories = categoryRows as Category[];
             product.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
-            product.variations = variationRows as Variation[];
+            product.variations = variations;
 
             product.variations.forEach(variation => {
                 variation.price = variation.price != null ? parseInt(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
-                variation.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
-
+                
                 this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
             });
         }
@@ -244,6 +263,32 @@ class ProductsRepository extends RepositoryBase {
                 option: a.option
             };
         })
+    }
+
+    private async initVariationsImages(variations: Variation[]): Promise<void> {
+        if (!variations || !Array.isArray(variations) || variations.length === 0)
+            return;
+
+        let imageIds: number[] = [];
+
+        variations.forEach((v: any) => {
+            const imageGallery = v.variation_image_gallery as string | null;
+            if (!imageGallery)
+                return;
+
+            const ids = imageGallery.split(";").map(i => parseInt(i));
+            
+            imageIds = [...imageIds, ...ids];
+            v.variation_image_gallery = ids;
+        });
+
+        const query = createGetImagesByIdsQuery(imageIds);
+        const [imageRows] = await this._pool.execute(query, imageIds);
+        const images = imageRows as DBImage[];
+
+        variations.forEach((v: any) => {
+            v.images = images.filter(i => v.variation_image_gallery?.includes(i.id)) as Image[];
+        });
     }
 }
 
