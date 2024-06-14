@@ -108,28 +108,29 @@ class ProductsRepository extends RepositoryBase {
         const productIds = products.map(p => p.id);
         const [categoryRows] = await this._pool.execute<any[]>(createGetProductsCategoriesQuery(productIds), productIds);
         const [variationRows] = await this._pool.execute<any[]>(createGetProductsVariationsQuery(productIds), productIds);
-        const variationIds = variationRows.map(v => v.id);
-        const [imageRows] = await this._pool.query<any[]>(createGetProductsImagesQuery([productIds, ...variationIds]), [productIds, ...variationIds]);
+        const variations = variationRows as Variation[];
+        const variationIds = variations.map(v => v.id);
+        const [imageRows] = await this._pool.query<any[]>(createGetProductsImagesQuery([...productIds, ...variationIds]), [...productIds, ...variationIds]);
 
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
         const attributesTerms = await attributesRepository.getProductsAttributeTerms(productIds);
-            
+
         products.forEach(product => {
             this.initProductAttributes(product, globalAttributes, attributesTerms);
+            this.initProductDefaultAttributes(product, globalAttributes, attributesTerms);
             
-            product.type = variationRows.length === 0 ? "simple" : "variable";
-            product.price = product.price != null ? parseInt(product.price as any) : null;
-            product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
-            product.default_attributes = [];
-
             product.categories = categoryRows.filter(c => c.object_id === product.id) as Category[];
             product.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
-            product.variations = variationRows as Variation[];
+            product.variations = variations.filter(v => v.parent_id === product.id);
 
+            product.type = product.variations.length === 0 ? "simple" : "variable";
+            product.price = product.price != null ? parseInt(product.price as any) : null;
+            product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
+            
             product.variations.forEach(variation => {
                 variation.price = variation.price != null ? parseInt(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
-                variation.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
+                variation.images = imageRows.filter(i => i.parent_id === variation.id) as Image[];
                 variation.attributes = [];
             });
         });
@@ -138,13 +139,11 @@ class ProductsRepository extends RepositoryBase {
     }
 
     public async getById(id: number): Promise<Product | null> {
-        const [[productRows]] = await this._pool.execute<[any[]]>(GET_BY_ID_QUERY, [ id ]);
+        const [[productRows]] = await this._pool.execute<[any[]]>(GET_BY_ID_QUERY, [id]);
         const [categoryRows] = await this._pool.execute<any[]>(createGetProductsCategoriesQuery([id]), [id]);
         const [variationRows] = await this._pool.execute<any[]>(createGetProductsVariationsQuery([id]), [id]);
         const variationIds = variationRows.map(v => v.id);
         const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery([id, ...variationIds]), [id, ...variationIds]);
-
-        console.log("variations count:", variationRows.length);
 
         const products = productRows as Product[];
         const product = products && Array.isArray(products) && products.length > 0 ? products[0] : null;
@@ -156,14 +155,13 @@ class ProductsRepository extends RepositoryBase {
 
             console.log("Attributes:", (product as any).attributes);
             console.log("Default attributes:", (product as any).default_attributes);
-            
+
             const globalAttributes: Attribute[] = await attributesRepository.getAll();
-            const attributesTerms = await attributesRepository.getProductsAttributeTerms([ product.id ]);
+            const attributesTerms = await attributesRepository.getProductsAttributeTerms([product.id]);
 
             this.initProductAttributes(product, globalAttributes, attributesTerms);
+            this.initProductDefaultAttributes(product, globalAttributes, attributesTerms);
 
-            product.default_attributes = [];
-            
             product.categories = categoryRows as Category[];
             product.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
             product.variations = variationRows as Variation[];
@@ -181,31 +179,57 @@ class ProductsRepository extends RepositoryBase {
     }
 
     private initProductAttributes(product: Product, globalAttributes: Attribute[], attributesTerms: DBProductAttributeTerm[]): void {
-        if (product.attributes) {
-            const attributes = Object.values(unserialize((product as any).attributes));
-            
-            product.attributes = attributes.map((a: any) => {
-                const gAttribute = globalAttributes.find(ga => `pa_${ga.slug}` === a.name);
-                const options = attributesTerms.filter(t => t.parent_id === product.id && t.attribute_slug === a.name);
+        if (!product.attributes) {
+            product.attributes = [];
+            return;
+        }
 
-                if (!gAttribute)
-                    throw new Error(`Product with ID ${product.id} contains unexisted attribute "${a.name}".`);
-                
-                return {
-                    id: gAttribute.id,
-                    name: gAttribute.name,
-                    slug: gAttribute.slug,
-                    visible: !!a.is_visible,
-                    variation: !!a.is_variation,
-                    options
-                }
+        const attributes = Object.values(unserialize((product as any).attributes));
+
+        product.attributes = attributes.map((a: any) => {
+            const gAttribute = globalAttributes.find(ga => `pa_${ga.slug}` === a.name);
+            const options = attributesTerms.filter(t => t.parent_id === product.id && t.attribute_slug === a.name);
+
+            if (!gAttribute)
+                throw new Error(`Product with ID ${product.id} contains unexisted attribute "${a.name}".`);
+
+            return {
+                id: gAttribute.id,
+                name: gAttribute.name,
+                slug: gAttribute.slug,
+                visible: !!a.is_visible,
+                variation: !!a.is_variation,
+                options
+            }
+        });
+    }
+
+    private initProductDefaultAttributes(product: Product, globalAttributes: Attribute[], attributesTerms: DBProductAttributeTerm[]): void {
+        if (!product.default_attributes) {
+            product.default_attributes = [];
+            return;
+        }
+            
+        const defaultAttributes = unserialize((product as any).default_attributes);
+        product.default_attributes = [];
+        
+        for (const [attrSlug, termSlug] of Object.entries(defaultAttributes)) {
+            const pAttribute = product.attributes.find(a => `pa_${a.slug}` === attrSlug);
+            if (!pAttribute)
+                throw new Error(`"${attrSlug}" default attribute does not have related attribute in the product with ID ${product.id}.in the the de`);
+
+            const aTerm = pAttribute?.options.find(t => t.slug === termSlug);
+            if (!aTerm)
+                throw new Error(`"${termSlug}" default attribute does not found in options of the "${attrSlug}" attribute of the the product with ID ${product.id}.in the the de`);
+
+            product.default_attributes.push({
+                id: aTerm.id,
+                name: aTerm.name,
+                option: aTerm.slug
             });
         }
-        
-        product.attributes ??= [];
-        
     }
 }
-    
+
 const productsRepository = new ProductsRepository(pool);
 export default productsRepository;

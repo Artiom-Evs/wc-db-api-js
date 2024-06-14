@@ -1,4 +1,4 @@
-DROP PROCEDURE IF EXISTS GetProductByID;
+
 DROP PROCEDURE IF EXISTS GetProductsV2;
 DROP PROCEDURE IF EXISTS GetProductsStatistic;
 DROP PROCEDURE IF EXISTS CreateFTIndex;
@@ -20,7 +20,7 @@ BEGIN
         CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
         CAST(m2.meta_value AS DECIMAL(4)) AS stock_quantity,
         m3.meta_value AS sku,
-        m4.meta_value AS product_attributes,
+        m4.meta_value AS attributes,
         m5.meta_value AS default_attributes
     FROM wp_posts
     LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
