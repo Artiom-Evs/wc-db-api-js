@@ -85,6 +85,9 @@ class AttributesRepository extends RepositoryBase {
     }
 
     public async getProductsAttributeTerms(productIds: number[]): Promise<DBProductAttributeTerm[]> {
+        if (productIds.length === 0)
+            return [];
+
         const query = createGetProductsAttributeTermsQuery(productIds);
         const [rows] = await this._pool.execute(query, productIds);
 
@@ -92,6 +95,9 @@ class AttributesRepository extends RepositoryBase {
     }
 
     public async getVariationsAttributes(variationIds: number[]): Promise<DBVariationAttribute[]> {
+        if (variationIds.length === 0)
+            return [];
+
         const query = createGetVariationsAttributesQuery(variationIds);
         const [attributeRows] = await this._pool.execute(query, variationIds);
 

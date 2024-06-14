@@ -127,12 +127,11 @@ class ProductsRepository extends RepositoryBase {
         const variations = variationRows as Variation[];
         const variationIds = variations.map(v => v.id);
         const [imageRows] = await this._pool.query<any[]>(createGetProductsImagesQuery([...productIds, ...variationIds]), [...productIds, ...variationIds]);
-        
+        const variationsImages = await this.getVariationsImages(variations);
+
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
         const attributesTerms = await attributesRepository.getProductsAttributeTerms(productIds);
         const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
-
-        this.initVariationsImages(variations);
 
         products.forEach(product => {
             this.initProductAttributes(product, globalAttributes, attributesTerms);
@@ -149,7 +148,8 @@ class ProductsRepository extends RepositoryBase {
             product.variations.forEach(variation => {
                 variation.price = variation.price != null ? parseInt(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
-                
+                variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
+
                 this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
             });
         });
@@ -164,11 +164,12 @@ class ProductsRepository extends RepositoryBase {
         const variations = variationRows as Variation[];
         const variationIds = variations.map(v => v.id);
         const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery([id, ...variationIds]), [id, ...variationIds]);
-        
+        const variationsImages = await this.getVariationsImages(variations);
+
+            console.log(variationsImages);
+
         const products = productRows as Product[];
         const product = products && Array.isArray(products) && products.length > 0 ? products[0] : null;
-
-        await this.initVariationsImages(variations);
 
         if (product) {
             product.type = variationRows.length === 0 ? "simple" : "variable";
@@ -189,7 +190,8 @@ class ProductsRepository extends RepositoryBase {
             product.variations.forEach(variation => {
                 variation.price = variation.price != null ? parseInt(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
-                
+                variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
+
                 this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
             });
         }
@@ -265,9 +267,9 @@ class ProductsRepository extends RepositoryBase {
         })
     }
 
-    private async initVariationsImages(variations: Variation[]): Promise<void> {
-        if (!variations || !Array.isArray(variations) || variations.length === 0)
-            return;
+    private async getVariationsImages(variations: Variation[]): Promise<DBImage[]> {
+        if (variations.length === 0)
+            return [];
 
         let imageIds: number[] = [];
 
@@ -282,13 +284,12 @@ class ProductsRepository extends RepositoryBase {
             v.variation_image_gallery = ids;
         });
 
+        if (imageIds.length === 0)
+            return [];
+
         const query = createGetImagesByIdsQuery(imageIds);
         const [imageRows] = await this._pool.execute(query, imageIds);
-        const images = imageRows as DBImage[];
-
-        variations.forEach((v: any) => {
-            v.images = images.filter(i => v.variation_image_gallery?.includes(i.id)) as Image[];
-        });
+        return imageRows as DBImage[];
     }
 }
 
