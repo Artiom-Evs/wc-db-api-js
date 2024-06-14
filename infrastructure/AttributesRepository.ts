@@ -42,7 +42,7 @@ const createGetVariationsAttributesQuery= (ids: number[]) => `
 SELECT
 	post_id AS parent_id,
     SUBSTRING(meta_key, 11) AS slug,
-    meta_value AS option
+    meta_value AS "option"
 FROM wp_postmeta
 WHERE post_id IN (${ids.map(() => "?").join(", ")}) AND meta_key LIKE "attribute_%";
 `;
@@ -99,6 +99,7 @@ class AttributesRepository extends RepositoryBase {
             return [];
 
         const query = createGetVariationsAttributesQuery(variationIds);
+        
         const [attributeRows] = await this._pool.execute(query, variationIds);
 
         return attributeRows as DBVariationAttribute[];

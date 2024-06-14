@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "description": "wc-db-api-js",
   "main": "dist/app.js",
+  "engines": {
+    "node": "20.x"
+  },
   "author": {
     "name": ""
   },
