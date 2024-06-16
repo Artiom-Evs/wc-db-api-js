@@ -99,7 +99,6 @@ class AttributesRepository extends RepositoryBase {
             return [];
 
         const query = createGetVariationsAttributesQuery(variationIds);
-        
         const [attributeRows] = await this._pool.execute(query, variationIds);
 
         return attributeRows as DBVariationAttribute[];

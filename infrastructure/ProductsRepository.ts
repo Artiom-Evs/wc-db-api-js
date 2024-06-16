@@ -4,6 +4,8 @@ import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
 import { unserialize } from "php-serialize";
 import attributesRepository, { DBProductAttributeTerm, DBVariationAttribute } from "./AttributesRepository";
+import categoriesRepository from "./CategoriesRepository";
+import imagesRepository, { DBImage } from "./ImagesRepository";
 
 const GET_ALL_QUERY = `
 CALL GetProductsV2(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
@@ -11,42 +13,6 @@ CALL GetProductsV2(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 const GET_BY_ID_QUERY = `
 CALL GetProductByID(?);
-`;
-
-const createGetImagesByIdsQuery = (ids: number[]) => `
-SELECT 
-    ID AS id, 
-    post_parent AS parent_id, 
-    post_title AS name, 
-    guid AS src
-FROM wp_posts
-WHERE ID IN (${ids.map(() => "?").join(", ")}) AND post_mime_type LIKE "image/%";
-`;
-const createGetProductsImagesQuery = (ids: number[]) => `
-SELECT 
-    ID AS id, 
-    post_parent AS parent_id, 
-    post_title AS name, 
-    guid AS src
-FROM wp_posts
-WHERE post_parent IN (${ids.map(() => "?").join(", ")}) AND post_mime_type LIKE "image/%";
-`;
-
-const createGetProductsCategoriesQuery = (ids: number[]) => `
-SELECT
-    TR.object_id, 
-    T.term_id AS id, 
-    T.name, 
-    T.slug, 
-    TT.parent AS parent_id, 
-    TT.description, 
-    TT.count
-FROM wp_term_relationships AS TR
-JOIN wp_term_taxonomy AS TT 
-    ON TR.term_taxonomy_id = TT.term_taxonomy_id
-JOIN wp_terms AS T 
-	ON TT.term_id = T.term_id
-WHERE TR.object_id IN (${ids.map(() => "?").join(", ")}) AND TT.taxonomy = "product_cat";
 `;
 
 const createGetProductsVariationsQuery = (ids: number[]) => `
@@ -86,13 +52,6 @@ interface GetProductsOptions {
     search?: string
 }
 
-interface DBImage {
-    id: number,
-    parent_id: number,
-    name: string,
-    src: string
-}
-
 class ProductsRepository extends RepositoryBase {
     public async getAll({
         page = 1,
@@ -122,23 +81,22 @@ class ProductsRepository extends RepositoryBase {
 
         const products = rows as Product[];
         const productIds = products.map(p => p.id);
-        const [categoryRows] = await this._pool.execute<any[]>(createGetProductsCategoriesQuery(productIds), productIds);
-        const [variationRows] = await this._pool.execute<any[]>(createGetProductsVariationsQuery(productIds), productIds);
-        const variations = variationRows as Variation[];
+        const variations = await this.getProductsVariations(productIds);
         const variationIds = variations.map(v => v.id);
-        const [imageRows] = await this._pool.query<any[]>(createGetProductsImagesQuery([...productIds, ...variationIds]), [...productIds, ...variationIds]);
+        const images = await imagesRepository.getProductsImages([ ...productIds, ...variationIds ]);
         const variationsImages = await this.getVariationsImages(variations);
 
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
         const attributesTerms = await attributesRepository.getProductsAttributeTerms(productIds);
         const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
+        const categories = await categoriesRepository.getProductsCategories(productIds);
 
         products.forEach(product => {
             this.initProductAttributes(product, globalAttributes, attributesTerms);
             this.initProductDefaultAttributes(product, globalAttributes, attributesTerms);
             
-            product.categories = categoryRows.filter(c => c.object_id === product.id) as Category[];
-            product.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
+            product.categories = categories.filter(c => c.object_id === product.id) as Category[];
+            product.images = images.filter(i => i.parent_id === product.id) as Image[];
             product.variations = variations.filter(v => v.parent_id === product.id);
 
             product.type = product.variations.length === 0 ? "simple" : "variable";
@@ -159,12 +117,11 @@ class ProductsRepository extends RepositoryBase {
 
     public async getById(id: number): Promise<Product | null> {
         const [[productRows]] = await this._pool.execute<[any[]]>(GET_BY_ID_QUERY, [id]);
-        const [categoryRows] = await this._pool.execute<any[]>(createGetProductsCategoriesQuery([id]), [id]);
-        const [variationRows] = await this._pool.execute<any[]>(createGetProductsVariationsQuery([id]), [id]);
-        const variations = variationRows as Variation[];
+        const variations = await this.getProductsVariations([id]);
         const variationIds = variations.map(v => v.id);
-        const [imageRows] = await this._pool.execute<any[]>(createGetProductsImagesQuery([id, ...variationIds]), [id, ...variationIds]);
+        const images = await imagesRepository.getProductsImages([id, ...variationIds]);
         const variationsImages = await this.getVariationsImages(variations);
+        const categories = await categoriesRepository.getProductsCategories([id]);
 
             console.log(variationsImages);
 
@@ -172,7 +129,7 @@ class ProductsRepository extends RepositoryBase {
         const product = products && Array.isArray(products) && products.length > 0 ? products[0] : null;
 
         if (product) {
-            product.type = variationRows.length === 0 ? "simple" : "variable";
+            product.type = variations.length === 0 ? "simple" : "variable";
             product.price = product.price != null ? parseInt(product.price as any) : null;
             product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
 
@@ -183,8 +140,8 @@ class ProductsRepository extends RepositoryBase {
             this.initProductAttributes(product, globalAttributes, attributesTerms);
             this.initProductDefaultAttributes(product, globalAttributes, attributesTerms);
 
-            product.categories = categoryRows as Category[];
-            product.images = imageRows.filter(i => i.parent_id === product.id) as Image[];
+            product.categories = categories as Category[];
+            product.images = images.filter(i => i.parent_id === product.id) as Image[];
             product.variations = variations;
 
             product.variations.forEach(variation => {
@@ -197,6 +154,16 @@ class ProductsRepository extends RepositoryBase {
         }
 
         return product;
+    }
+
+    private async getProductsVariations(productIds: number[]): Promise<Variation[]> {
+        if (productIds.length === 0)
+            return [];
+
+        const query = createGetProductsVariationsQuery(productIds);
+        const [variationRows] = await this._pool.execute(query, productIds);
+
+        return variationRows as Variation[];
     }
 
     private initProductAttributes(product: Product, globalAttributes: Attribute[], attributesTerms: DBProductAttributeTerm[]): void {
@@ -287,9 +254,8 @@ class ProductsRepository extends RepositoryBase {
         if (imageIds.length === 0)
             return [];
 
-        const query = createGetImagesByIdsQuery(imageIds);
-        const [imageRows] = await this._pool.execute(query, imageIds);
-        return imageRows as DBImage[];
+        const images = imagesRepository.getImagesByIds(imageIds);
+        return images;
     }
 }
 
