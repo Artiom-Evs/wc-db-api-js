@@ -11,6 +11,10 @@ const GET_ALL_QUERY = `
 CALL GetProductsV2(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 `;
 
+const GET_STATISTIC_QUERY = `
+CALL GetProductsStatistic(?, ?, ?, ?);
+`;
+
 const GET_BY_ID_QUERY = `
 CALL GetProductByID(?);
 `;
@@ -52,7 +56,36 @@ interface GetProductsOptions {
     search?: string
 }
 
+export interface ProductsStatistic {
+    products_count: number,
+    min_price: number,
+    max_price: number
+}
+
 class ProductsRepository extends RepositoryBase {
+    public async getProductsStatistic({
+        category = "",
+        attribute = "",
+        attribute_term = "",
+        search = ""
+    }): Promise<ProductsStatistic> {
+        
+        const [[[ result ]]] = await this._pool.execute<[any[]]>(GET_STATISTIC_QUERY, [
+            category,
+            attribute,
+            attribute_term,
+            search
+        ]);
+
+        const statistic = result as ProductsStatistic;
+
+        // this parsing is required, because mysql2 returns min_price and max_price fields as a strings
+        statistic.min_price = parseFloat(statistic.min_price as any);
+        statistic.max_price = parseFloat(statistic.max_price as any);
+
+        return statistic;
+    }
+
     public async getAll({
         page = 1,
         per_page = 100,

@@ -17,17 +17,25 @@ export const GetProductsQuerySchema = z.object({
     search: z.string().optional()
 });
 
+const GetProductsResponseSchema = z.object({
+    statistic: z.object({
+        products_count: z.number(),
+        min_price: z.number(),
+        max_price: z.number()
+    }),
+    items: z.array(ProductSchema)
+});
+
 export const GetProductsEndpoint = defaultEndpointsFactory.build({
     method: "get",
     input: GetProductsQuerySchema,
-    output: z.object({
-        items: z.array(ProductSchema)
-    }),
+    output: GetProductsResponseSchema,
     handler: async ({ input, options, logger }) => {
         logger.debug("Requested parameters:", input);
 
         const products = await productsRepository.getAll(input);
+        const statistic = await productsRepository.getProductsStatistic(input);
         
-        return { items: products };
+        return { statistic, items: products };
     },
 });
