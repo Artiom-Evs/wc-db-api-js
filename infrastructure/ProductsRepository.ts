@@ -214,13 +214,20 @@ class ProductsRepository extends RepositoryBase {
             if (!gAttribute)
                 throw new Error(`Product with ID ${product.id} contains unexisted attribute "${a.name}".`);
 
+            // variation and default attributes should have same IDs as related product attributes
+            options.forEach(o => o.id = gAttribute.id);
+
+            // list of the product attribute options should be unique
+            const uniqueOptions: Map<string, DBProductAttributeTerm> = new Map();
+            options.forEach(o => uniqueOptions.set(o.slug, o));
+
             return {
                 id: gAttribute.id,
                 name: gAttribute.name,
                 slug: gAttribute.slug,
                 visible: !!a.is_visible,
                 variation: !!a.is_variation,
-                options
+                options: [...uniqueOptions.values()]
             }
         });
     }
