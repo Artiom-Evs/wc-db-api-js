@@ -80,8 +80,8 @@ class ProductsRepository extends RepositoryBase {
         const statistic = result as ProductsStatistic;
 
         // this parsing is required, because mysql2 returns min_price and max_price fields as a strings
-        statistic.min_price = parseFloat(statistic.min_price as any);
-        statistic.max_price = parseFloat(statistic.max_price as any);
+        statistic.min_price = parseFloat(statistic.min_price as any ?? "0");
+        statistic.max_price = parseFloat(statistic.max_price as any ?? "0");
 
         return statistic;
     }
