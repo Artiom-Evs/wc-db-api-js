@@ -6,9 +6,10 @@ import { GetCategoryEndpoint } from "./endpoints/GetCategoryEndpoint";
 import { GetCategoriesEndpoint } from "./endpoints/GetCategoriesEndpoint";
 import { GetProductEndpoint } from "./endpoints/GetProductEndpoint";
 import { GetProductsEndpoint } from "./endpoints/GetProductsEndpoint";
-import { createConfig } from "express-zod-api";
+import { Documentation, createConfig } from "express-zod-api";
 import { Routing } from "express-zod-api";
 import { createServer } from "express-zod-api";
+import swaggerUI from "swagger-ui-express";
 
 const port = process.env.APP_HTTP_PORT ? parseInt(process.env.APP_HTTP_PORT) : null;
 if (!port)
@@ -46,6 +47,21 @@ const routing: Routing = {
         }
     },
     "": GetRootEndpoint
+};
+
+// create OpenAPI documentation with Swagger UI web page
+const doc = new Documentation({
+    routing,
+    config,
+    serverUrl: "",
+    title: "Hello from Swagger UI!",
+    version: "1.0.0"
+});
+const openapiSchema = doc.getSpecAsJson();
+const openapiSchemaObj = JSON.parse(openapiSchema);
+config.server.beforeRouting = ({ app, logger }) => {
+    logger.info("Serving documentation at: /doc");
+    app.use("/doc", swaggerUI.serve, swaggerUI.setup(openapiSchemaObj));
 };
 
 createServer(config, routing);

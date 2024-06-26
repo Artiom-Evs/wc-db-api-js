@@ -1,3 +1,4 @@
+import { ez } from "express-zod-api";
 import { z } from "zod";
 
 export type Product = z.infer<typeof ProductSchema>;
@@ -60,8 +61,8 @@ export const VariationSchema = z.object({
     description: z.string(),
     stock_quantity: z.number().nullable(),
     price: z.number().nullable(),
-    created: z.date(),
-    modified: z.date(),
+    created: ez.dateOut(),
+    modified: ez.dateOut(),
     images: z.array(ImageSchema),
     attributes: z.array(VariationAttributeSchema)
 });
@@ -75,8 +76,8 @@ export const ProductSchema = z.object({
     type: z.enum([ "simple", "variable" ]),
     stock_quantity: z.number().nullable(),
     price: z.number().nullable(),
-    created: z.date(),
-    modified: z.date(),
+    created: ez.dateOut(),
+    modified: ez.dateOut(),
     categories: z.array(CategorySchema),
     images: z.array(ImageSchema),
     attributes: z.array(ProductAttributeSchema),

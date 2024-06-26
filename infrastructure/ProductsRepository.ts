@@ -1,4 +1,3 @@
-import moment from "moment";
 import { Attribute, VariationAttribute, Category, Image, Product, Variation } from "../schemas";
 import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";

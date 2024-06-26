@@ -10,6 +10,6 @@ export const GetRootEndpoint = defaultEndpointsFactory.build({
     handler: async ({ input, options, logger }) => {
         logger.debug("Requested parameters:", input);
 
-        return { message: "Hello from test ewagifts API!" };
+        return { message: `Hello from test ewagifts API! Swagger UI API documentation page serving at "http://<domain>/doc".` };
     },
 });

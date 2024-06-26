@@ -35,7 +35,9 @@ export const GetProductsEndpoint = defaultEndpointsFactory.build({
 
         const products = await productsRepository.getAll(input);
         const statistic = await productsRepository.getProductsStatistic(input);
-        
-        return { statistic, items: products };
+
+        // the products variable is converted to type any to avoid a type mismatch error. 
+        // The ProductSchema and VariationSchema ZOD schemas for the created and modified fields use a ZOD type dateOut(), which is converted to a string type in the output type, but the input type is still to require value of a Date type before conversion.
+        return { statistic, items: products as any };
     },
 });
