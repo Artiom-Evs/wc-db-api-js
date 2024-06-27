@@ -8,10 +8,12 @@ import { GetProductEndpoint } from "./endpoints/GetProductEndpoint";
 import { GetProductsEndpoint } from "./endpoints/GetProductsEndpoint";
 import { Documentation, createConfig } from "express-zod-api";
 import { Routing } from "express-zod-api";
+
 import { createServer } from "express-zod-api";
 import swaggerUI from "swagger-ui-express";
 import { GetProductBySlugEndpoint } from "./endpoints/GetProductBySlugEndpoint";
 import { GetCategoryBySlugEndpoint } from "./endpoints/GetCategoryBySlugEndpoint";
+import { GetAttributeBySlugEndpoint } from "./endpoints/GetAttributeBySlugEndpoint";
 
 const port = process.env.APP_HTTP_PORT ? parseInt(process.env.APP_HTTP_PORT) : null;
 if (!port)
@@ -53,6 +55,9 @@ const routing: Routing = {
             },
             categories: {
                 ":slug": GetCategoryBySlugEndpoint
+            },
+            attributes: {
+                ":slug": GetAttributeBySlugEndpoint
             }
         }
     },

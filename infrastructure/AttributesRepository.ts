@@ -10,7 +10,15 @@ FROM wp_woocommerce_attribute_taxonomies;
 const GET_BY_ID_QUERY = `
 SELECT attribute_id AS id, attribute_name AS name, attribute_label AS slug
 FROM wp_woocommerce_attribute_taxonomies
-WHERE attribute_id = ?;
+WHERE attribute_id = ?
+LIMIT 1;
+`;
+
+const GET_BY_SLUG_QUERY = `
+SELECT attribute_id AS id, attribute_name AS name, attribute_label AS slug
+FROM wp_woocommerce_attribute_taxonomies
+WHERE attribute_label = ?
+LIMIT 1;
 `;
 
 const GET_TERMS_QUERY = `
@@ -71,6 +79,14 @@ class AttributesRepository extends RepositoryBase {
 
     public async getById(id: number): Promise<Attribute | null> {
         const [rows] = await pool.execute(GET_BY_ID_QUERY, [ id ]);
+        const attributes = rows as Attribute[];
+        const attribute = attributes && Array.isArray(attributes) && attributes.length > 0 ? attributes[0] : null;
+
+        return attribute;
+    }
+
+    public async getBySlug(slug: string): Promise<Attribute | null> {
+        const [rows] = await pool.execute(GET_BY_SLUG_QUERY, [ slug]);
         const attributes = rows as Attribute[];
         const attribute = attributes && Array.isArray(attributes) && attributes.length > 0 ? attributes[0] : null;
 
