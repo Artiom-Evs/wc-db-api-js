@@ -139,6 +139,9 @@ class ProductsRepository extends RepositoryBase {
             product.price = product.price != null ? parseInt(product.price as any) : null;
             product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
 
+            if (product.price_circulations)
+                product.price_circulations = unserialize((product as any).price_circulations);
+            
             product.variations.forEach(variation => {
                 variation.price = variation.price != null ? parseInt(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
@@ -169,6 +172,9 @@ class ProductsRepository extends RepositoryBase {
         product.price = product.price != null ? parseInt(product.price as any) : null;
         product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
 
+        if (product.price_circulations)
+            product.price_circulations = unserialize((product as any).price_circulations);
+        
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
         const attributesTerms = await attributesRepository.getProductsAttributeTerms([product.id]);
         const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
@@ -199,7 +205,7 @@ class ProductsRepository extends RepositoryBase {
         if (!product)
             return null;
 
-        const variations = await this.getProductsVariations([product.id]);
+const variations = await this.getProductsVariations([product.id]);
         const variationIds = variations.map(v => v.id);
         const images = await imagesRepository.getProductsImages([product.id, ...variationIds]);
         const variationsImages = await this.getVariationsImages(variations);
@@ -209,6 +215,9 @@ class ProductsRepository extends RepositoryBase {
         product.price = product.price != null ? parseInt(product.price as any) : null;
         product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
 
+        if (product.price_circulations)
+            product.price_circulations = unserialize((product as any).price_circulations);
+        
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
         const attributesTerms = await attributesRepository.getProductsAttributeTerms([product.id]);
         const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);

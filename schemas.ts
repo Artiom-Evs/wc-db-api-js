@@ -9,6 +9,7 @@ export type Attribute = z.infer<typeof AttributeSchema>;
 export type AttributeTerm = z.infer<typeof AttributeTermSchema>;
 export type ProductAttribute = z.infer<typeof ProductAttributeSchema>;
 export type VariationAttribute = z.infer<typeof VariationAttributeSchema>;
+export type PriceCirculations = z.infer<typeof PriceCirculationsSchema>;
 
 export const ImageSchema = z.object({
     id: z.number(),
@@ -52,6 +53,11 @@ export const ProductAttributeSchema = z.object({
     options: z.array(AttributeTermSchema)
 });
 
+export const PriceCirculationsSchema = z.object({
+    type: z.enum([ "relative", "direct" ]),
+    circulations: z.record(z.string(), z.number())
+});
+
 export const VariationSchema = z.object({
     id: z.number(),
     parent_id: z.number(),
@@ -74,10 +80,11 @@ export const ProductSchema = z.object({
     slug: z.string().min(1),
     description: z.string(),
     type: z.enum([ "simple", "variable" ]),
-    stock_quantity: z.number().nullable(),
-    price: z.number().nullable(),
     created: ez.dateOut(),
     modified: ez.dateOut(),
+    stock_quantity: z.number().nullable(),
+    price: z.number().nullable(),
+    price_circulations: PriceCirculationsSchema.nullable(),
     categories: z.array(CategorySchema),
     images: z.array(ImageSchema),
     attributes: z.array(ProductAttributeSchema),
