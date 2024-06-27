@@ -11,6 +11,7 @@ import { Routing } from "express-zod-api";
 import { createServer } from "express-zod-api";
 import swaggerUI from "swagger-ui-express";
 import { GetProductBySlugEndpoint } from "./endpoints/GetProductBySlugEndpoint";
+import { GetCategoryBySlugEndpoint } from "./endpoints/GetCategoryBySlugEndpoint";
 
 const port = process.env.APP_HTTP_PORT ? parseInt(process.env.APP_HTTP_PORT) : null;
 if (!port)
@@ -49,6 +50,9 @@ const routing: Routing = {
         v2: {
             products: {
                 ":slug": GetProductBySlugEndpoint
+            },
+            categories: {
+                ":slug": GetCategoryBySlugEndpoint
             }
         }
     },

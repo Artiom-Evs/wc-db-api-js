@@ -15,6 +15,16 @@ from wp_term_taxonomy as tt
 join wp_terms as t on t.term_id = tt.term_id
 where tt.taxonomy = "product_cat"
     AND tt.term_id = ?
+LIMIT 1;
+`;
+
+const GET_BY_SLUG_QUERY = `
+select tt.term_id AS id, tt.parent AS parent_id, t.name, t.slug, tt.description, tt.count
+from wp_term_taxonomy as tt
+join wp_terms as t on t.term_id = tt.term_id
+where tt.taxonomy = "product_cat"
+    AND t.slug = ?
+LIMIT 1;
 `;
 
 const createGetProductsCategoriesQuery = (ids: number[]) => `
@@ -54,6 +64,14 @@ class CategoriesRepository extends RepositoryBase {
 
     public async getById(id: number): Promise<Category | null> {
         const [rows] = await pool.execute(GET_BY_ID_QUERY, [ id ]);
+        const categories = rows as Category[];
+        const category = categories && Array.isArray(categories) && categories.length > 0 ? categories[0] : null;
+
+        return category;
+    }
+
+    public async getBySlug(slug: string): Promise<Category | null> {
+        const [rows] = await pool.execute(GET_BY_SLUG_QUERY, [ slug]);
         const categories = rows as Category[];
         const category = categories && Array.isArray(categories) && categories.length > 0 ? categories[0] : null;
 
