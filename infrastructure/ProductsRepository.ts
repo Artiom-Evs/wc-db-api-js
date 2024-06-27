@@ -18,6 +18,10 @@ const GET_BY_ID_QUERY = `
 CALL GetProductByID(?);
 `;
 
+const GET_BY_SLUG_QUERY = `
+CALL GetProductBySlug(?);
+`;
+
 const createGetProductsVariationsQuery = (ids: number[]) => `
 SELECT 
     ID AS id, 
@@ -68,8 +72,8 @@ class ProductsRepository extends RepositoryBase {
         attribute_term = "",
         search = ""
     }): Promise<ProductsStatistic> {
-        
-        const [[[ result ]]] = await this._pool.execute<[any[]]>(GET_STATISTIC_QUERY, [
+
+        const [[[result]]] = await this._pool.execute<[any[]]>(GET_STATISTIC_QUERY, [
             category,
             attribute,
             attribute_term,
@@ -115,7 +119,7 @@ class ProductsRepository extends RepositoryBase {
         const productIds = products.map(p => p.id);
         const variations = await this.getProductsVariations(productIds);
         const variationIds = variations.map(v => v.id);
-        const images = await imagesRepository.getProductsImages([ ...productIds, ...variationIds ]);
+        const images = await imagesRepository.getProductsImages([...productIds, ...variationIds]);
         const variationsImages = await this.getVariationsImages(variations);
 
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
@@ -126,7 +130,7 @@ class ProductsRepository extends RepositoryBase {
         products.forEach(product => {
             this.initProductAttributes(product, globalAttributes, attributesTerms);
             this.initProductDefaultAttributes(product, globalAttributes, attributesTerms);
-            
+
             product.categories = categories.filter(c => c.object_id === product.id) as Category[];
             product.images = images.filter(i => i.parent_id === product.id) as Image[];
             product.variations = variations.filter(v => v.parent_id === product.id);
@@ -134,7 +138,7 @@ class ProductsRepository extends RepositoryBase {
             product.type = product.variations.length === 0 ? "simple" : "variable";
             product.price = product.price != null ? parseInt(product.price as any) : null;
             product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
-            
+
             product.variations.forEach(variation => {
                 variation.price = variation.price != null ? parseInt(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
@@ -149,41 +153,80 @@ class ProductsRepository extends RepositoryBase {
 
     public async getById(id: number): Promise<Product | null> {
         const [[productRows]] = await this._pool.execute<[any[]]>(GET_BY_ID_QUERY, [id]);
+        const products = productRows as Product[];
+        const product = products && Array.isArray(products) && products.length > 0 ? products[0] : null;
+
+        if (!product)
+            return null;
+
         const variations = await this.getProductsVariations([id]);
         const variationIds = variations.map(v => v.id);
         const images = await imagesRepository.getProductsImages([id, ...variationIds]);
         const variationsImages = await this.getVariationsImages(variations);
         const categories = await categoriesRepository.getProductsCategories([id]);
 
-            console.log(variationsImages);
+        product.type = variations.length === 0 ? "simple" : "variable";
+        product.price = product.price != null ? parseInt(product.price as any) : null;
+        product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
 
+        const globalAttributes: Attribute[] = await attributesRepository.getAll();
+        const attributesTerms = await attributesRepository.getProductsAttributeTerms([product.id]);
+        const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
+
+        this.initProductAttributes(product, globalAttributes, attributesTerms);
+        this.initProductDefaultAttributes(product, globalAttributes, attributesTerms);
+
+        product.categories = categories as Category[];
+        product.images = images.filter(i => i.parent_id === product.id) as Image[];
+        product.variations = variations;
+
+        product.variations.forEach(variation => {
+            variation.price = variation.price != null ? parseInt(variation.price as any) : null;
+            variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
+            variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
+
+            this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
+        });
+
+        return product;
+    }
+
+    public async getBySlug(slug: string): Promise<Product | null> {
+        const [[productRows]] = await this._pool.execute<[any[]]>(GET_BY_SLUG_QUERY, [slug]);
         const products = productRows as Product[];
         const product = products && Array.isArray(products) && products.length > 0 ? products[0] : null;
 
-        if (product) {
-            product.type = variations.length === 0 ? "simple" : "variable";
-            product.price = product.price != null ? parseInt(product.price as any) : null;
-            product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
+        if (!product)
+            return null;
 
-            const globalAttributes: Attribute[] = await attributesRepository.getAll();
-            const attributesTerms = await attributesRepository.getProductsAttributeTerms([product.id]);
-            const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
+        const variations = await this.getProductsVariations([product.id]);
+        const variationIds = variations.map(v => v.id);
+        const images = await imagesRepository.getProductsImages([product.id, ...variationIds]);
+        const variationsImages = await this.getVariationsImages(variations);
+        const categories = await categoriesRepository.getProductsCategories([product.id]);
 
-            this.initProductAttributes(product, globalAttributes, attributesTerms);
-            this.initProductDefaultAttributes(product, globalAttributes, attributesTerms);
+        product.type = variations.length === 0 ? "simple" : "variable";
+        product.price = product.price != null ? parseInt(product.price as any) : null;
+        product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
 
-            product.categories = categories as Category[];
-            product.images = images.filter(i => i.parent_id === product.id) as Image[];
-            product.variations = variations;
+        const globalAttributes: Attribute[] = await attributesRepository.getAll();
+        const attributesTerms = await attributesRepository.getProductsAttributeTerms([product.id]);
+        const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
 
-            product.variations.forEach(variation => {
-                variation.price = variation.price != null ? parseInt(variation.price as any) : null;
-                variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
-                variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
+        this.initProductAttributes(product, globalAttributes, attributesTerms);
+        this.initProductDefaultAttributes(product, globalAttributes, attributesTerms);
 
-                this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
-            });
-        }
+        product.categories = categories as Category[];
+        product.images = images.filter(i => i.parent_id === product.id) as Image[];
+        product.variations = variations;
+
+        product.variations.forEach(variation => {
+            variation.price = variation.price != null ? parseInt(variation.price as any) : null;
+            variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
+            variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
+
+            this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
+        });
 
         return product;
     }
@@ -236,10 +279,10 @@ class ProductsRepository extends RepositoryBase {
             product.default_attributes = [];
             return;
         }
-            
+
         const defaultAttributes = unserialize((product as any).default_attributes);
         product.default_attributes = [];
-        
+
         for (const [attrSlug, termSlug] of Object.entries(defaultAttributes)) {
             const pAttribute = product.attributes.find(a => `pa_${a.slug}` === attrSlug);
             if (!pAttribute)
@@ -259,18 +302,18 @@ class ProductsRepository extends RepositoryBase {
 
     private initVariationAttributes(variation: Variation, globalAttributes: Attribute[], variationsAttributes: DBVariationAttribute[]): void {
         variation.attributes = variationsAttributes.filter(a => a.parent_id === variation.id)
-        .map(a => {
-            const gAttribute = globalAttributes.find(ga => `pa_${ga.slug}` === a.slug);
-            
-            if (!gAttribute)
-                throw new Error(`"${a.slug}" variation attribute does not found in the list of the global attributes.`);
+            .map(a => {
+                const gAttribute = globalAttributes.find(ga => `pa_${ga.slug}` === a.slug);
 
-            return {
-                id: gAttribute.id,
-                name: gAttribute.name,
-                option: a.option
-            };
-        })
+                if (!gAttribute)
+                    throw new Error(`"${a.slug}" variation attribute does not found in the list of the global attributes.`);
+
+                return {
+                    id: gAttribute.id,
+                    name: gAttribute.name,
+                    option: a.option
+                };
+            })
     }
 
     private async getVariationsImages(variations: Variation[]): Promise<DBImage[]> {
@@ -285,7 +328,7 @@ class ProductsRepository extends RepositoryBase {
                 return;
 
             const ids = imageGallery.split(";").map(i => parseInt(i));
-            
+
             imageIds = [...imageIds, ...ids];
             v.variation_image_gallery = ids;
         });
