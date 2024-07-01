@@ -27,6 +27,15 @@ where tt.taxonomy = "product_cat"
 LIMIT 1;
 `;
 
+const createGetBySlugsQuery= (slugs: string[]) => `
+select tt.term_id AS id, tt.parent AS parent_id, t.name, t.slug, tt.description, tt.count
+from wp_term_taxonomy as tt
+join wp_terms as t on t.term_id = tt.term_id
+where tt.taxonomy = "product_cat"
+    AND t.slug IN (${slugs.map(() => "?").join(", ")})
+LIMIT ${slugs.length};
+`;
+
 const createGetProductsCategoriesQuery = (ids: number[]) => `
 SELECT
     TR.object_id, 
@@ -57,6 +66,17 @@ export interface DBCategory {
 class CategoriesRepository extends RepositoryBase {
     public async getAll(): Promise<Category[]> {
         const [rows] = await this._pool.execute(GET_ALL_QUERY, []);
+        const categories = rows as Category[];
+        
+        return categories;
+    }
+
+    public async getBySlugs(slugs: string[]): Promise<Category[]> {
+        if (slugs.length === 0)
+            return [];
+
+        const query = createGetBySlugsQuery(slugs);
+        const [rows] = await this._pool.execute(query, slugs);
         const categories = rows as Category[];
         
         return categories;
