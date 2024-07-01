@@ -10,6 +10,7 @@ export type AttributeTerm = z.infer<typeof AttributeTermSchema>;
 export type ProductAttribute = z.infer<typeof ProductAttributeSchema>;
 export type VariationAttribute = z.infer<typeof VariationAttributeSchema>;
 export type PriceCirculations = z.infer<typeof PriceCirculationsSchema>;
+export type ProductsStatistic = z.infer<typeof ProductsStatisticSchema>;
 
 export const ImageSchema = z.object({
     id: z.number(),
@@ -90,4 +91,10 @@ export const ProductSchema = z.object({
     attributes: z.array(ProductAttributeSchema),
     default_attributes: z.array(VariationAttributeSchema),
     variations: z.array(VariationSchema)
+});
+
+export const ProductsStatisticSchema = z.object({
+    products_count: z.number(),
+    min_price: z.number(),
+    max_price: z.number()
 });

@@ -22,6 +22,33 @@ const GET_BY_SLUG_QUERY = `
 CALL GetProductBySlug(?);
 `;
 
+const createGetProductsByIdsQuery = (ids: number[]) => `
+SELECT 
+    ID AS id,
+    post_title AS name, 
+    post_name AS slug, 
+    post_content AS description, 
+    post_date AS created, 
+    post_modified AS modified, 
+    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
+    CAST(m2.meta_value AS DECIMAL(4)) AS stock_quantity,
+    m3.meta_value AS sku,
+    m4.meta_value AS attributes,
+    m5.meta_value AS default_attributes,
+    m6.meta_value AS price_circulations
+FROM wp_posts
+LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
+LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
+LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
+LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_product_attributes"
+LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "_default_attributes"
+LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key = "_price_circulations"
+WHERE ID IN (${ids.map(() => "?").join(", ")})
+    AND post_type = "product" 
+    AND post_status = "publish"
+LIMIT ${ids.length};
+`;
+
 const createGetProductsVariationsQuery = (ids: number[]) => `
 SELECT 
     ID AS id, 
@@ -126,6 +153,51 @@ class ProductsRepository extends RepositoryBase {
         const attributesTerms = await attributesRepository.getProductsAttributeTerms(productIds);
         const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
         const categories = await categoriesRepository.getProductsCategories(productIds);
+
+        products.forEach(product => {
+            this.initProductAttributes(product, globalAttributes, attributesTerms);
+            this.initProductDefaultAttributes(product, globalAttributes, attributesTerms);
+
+            product.categories = categories.filter(c => c.object_id === product.id) as Category[];
+            product.images = images.filter(i => i.parent_id === product.id) as Image[];
+            product.variations = variations.filter(v => v.parent_id === product.id);
+
+            product.type = product.variations.length === 0 ? "simple" : "variable";
+            product.price = product.price != null ? parseInt(product.price as any) : null;
+            product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
+
+            if (product.price_circulations)
+                product.price_circulations = unserialize((product as any).price_circulations);
+            
+            product.variations.forEach(variation => {
+                variation.price = variation.price != null ? parseInt(variation.price as any) : null;
+                variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
+                variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
+
+                this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
+            });
+        });
+
+        return products;
+    }
+
+    public async GetByIds(ids: number[]): Promise<Product[]> {
+        if (ids.length === 0)
+            return [];
+
+        const query = createGetProductsByIdsQuery(ids);
+        const [rows] = await this._pool.execute<any>(query, ids, );
+
+        const products = rows as Product[];
+        const variations = await this.getProductsVariations(ids);
+        const variationIds = variations.map(v => v.id);
+        const images = await imagesRepository.getProductsImages([...ids, ...variationIds]);
+        const variationsImages = await this.getVariationsImages(variations);
+
+        const globalAttributes: Attribute[] = await attributesRepository.getAll();
+        const attributesTerms = await attributesRepository.getProductsAttributeTerms(ids);
+        const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
+        const categories = await categoriesRepository.getProductsCategories(ids);
 
         products.forEach(product => {
             this.initProductAttributes(product, globalAttributes, attributesTerms);
