@@ -31,10 +31,11 @@ export const GetProductsEndpoint = defaultEndpointsFactory.build({
     handler: async ({ input, options, logger }) => {
         logger.debug("Requested parameters:", input);
 
-        const products = input.include && Array.isArray(input.include) && input.include.length > 0
+        const products = input.include && Array.isArray(input.include)
             ? await productsRepository.GetByIds(input.include)
             : await productsRepository.getAll(input);
-        const statistic = input.include && Array.isArray(input.include) && input.include.length > 0
+
+        const statistic = input.include && Array.isArray(input.include)
         ? null: await productsRepository.getProductsStatistic(input);
 
         // the products variable is converted to type any to avoid a type mismatch error. 
