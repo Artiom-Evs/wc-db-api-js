@@ -111,7 +111,7 @@ BEGIN
             AND post_status = "publish"
             AND (minPrice = -1 OR CAST(m1.meta_value AS DECIMAL(10, 2)) >= minPrice)
             AND (maxPrice = -1 OR CAST(m1.meta_value AS DECIMAL(10, 2)) <= maxPrice)
-            AND (searchText = "" OR MATCH(post_title) AGAINST(searchText))
+            AND (searchText = "" OR m3.meta_value LIKE CONCAT("%", searchText, "%") COLLATE utf8mb4_unicode_ci OR MATCH(post_title) AGAINST(CONCAT("*", searchText, "*") IN BOOLEAN MODE))
             AND (categoryName = "" OR ID IN
                 (SELECT object_id
                 FROM wp_term_relationships
@@ -165,7 +165,7 @@ BEGIN
             AND post_status = "publish"
             AND (minPrice = -1 OR CAST(m1.meta_value AS DECIMAL(10, 2)) >= minPrice)
             AND (maxPrice = -1 OR CAST(m1.meta_value AS DECIMAL(10, 2)) <= maxPrice)
-            AND (searchText = "" OR MATCH(post_title) AGAINST(searchText))
+            AND (searchText = "" OR m3.meta_value LIKE CONCAT("%", searchText, "%") COLLATE utf8mb4_unicode_ci   OR MATCH(post_title) AGAINST(CONCAT("*", searchText, "*") IN BOOLEAN MODE))
             AND (categoryName = "" OR ID IN
                 (SELECT object_id
                 FROM wp_term_relationships
@@ -211,9 +211,10 @@ BEGIN
         MAX(CAST(m1.meta_value AS DECIMAL(10, 2))) AS max_price
     FROM wp_posts
     LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
+    LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_sku"
     WHERE post_type = "product" 
         AND post_status = "publish"
-        AND (searchText = "" OR MATCH(post_title) AGAINST(searchText))
+        AND (searchText = "" OR m2.meta_value LIKE CONCAT("%", searchText, "%") COLLATE utf8mb4_unicode_ci OR MATCH(post_title) AGAINST(CONCAT("*", searchText, "*") IN BOOLEAN MODE))
         AND (categoryName = "" OR ID IN
             (SELECT object_id
             FROM wp_term_relationships
