@@ -14,6 +14,7 @@ import swaggerUI from "swagger-ui-express";
 import { GetProductBySlugEndpoint } from "./endpoints/GetProductBySlugEndpoint";
 import { GetCategoryBySlugEndpoint } from "./endpoints/GetCategoryBySlugEndpoint";
 import { GetAttributeBySlugEndpoint } from "./endpoints/GetAttributeBySlugEndpoint";
+import { GetAttributeTermsBySlugEndpoint } from "./endpoints/GetAttributeTermsBySlugEndpoint copy";
 
 const port = process.env.APP_HTTP_PORT ? parseInt(process.env.APP_HTTP_PORT) : null;
 if (!port)
@@ -51,13 +52,19 @@ const routing: Routing = {
         },
         v2: {
             products: {
-                ":slug": GetProductBySlugEndpoint
+                ":slug": GetProductBySlugEndpoint,
+                "": GetProductsEndpoint
             },
             categories: {
-                ":slug": GetCategoryBySlugEndpoint
+                ":slug": GetCategoryBySlugEndpoint,
+                "": GetCategoriesEndpoint
             },
             attributes: {
-                ":slug": GetAttributeBySlugEndpoint
+                ":slug": {
+                    terms: GetAttributeTermsBySlugEndpoint,
+                    "": GetAttributeBySlugEndpoint
+                },
+                "": GetAttributesEndpoint
             }
         }
     },

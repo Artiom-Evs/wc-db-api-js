@@ -32,6 +32,13 @@ WHERE tt.taxonomy = CONCAT("pa_",
     LIMIT 1))
 `;
 
+const GET_TERMS_BY_SLUG_QUERY = `
+SELECT t.term_id AS id, t.name, t.slug
+FROM wp_terms AS t 
+INNER JOIN wp_term_taxonomy AS tt ON t.term_id = tt.term_id
+WHERE tt.taxonomy = CONCAT("pa_", ?);
+`;
+
 
 
 const createGetProductsAttributeTermsQuery = (ids: number[]) => `
@@ -95,6 +102,13 @@ class AttributesRepository extends RepositoryBase {
     
     public async getTerms(attributeId: number): Promise<AttributeTerm[]> {
         const [rows] = await pool.execute(GET_TERMS_QUERY, [ attributeId ]);
+        const terms = rows as AttributeTerm[];        
+
+        return terms;
+    }
+
+    public async getTermsBySlug(attributeSlug: string): Promise<AttributeTerm[]> {
+        const [rows] = await pool.execute(GET_TERMS_BY_SLUG_QUERY , [ attributeSlug]);
         const terms = rows as AttributeTerm[];        
 
         return terms;
