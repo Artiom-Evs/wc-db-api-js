@@ -15,6 +15,7 @@ import { GetProductBySlugEndpoint } from "./endpoints/GetProductBySlugEndpoint";
 import { GetCategoryBySlugEndpoint } from "./endpoints/GetCategoryBySlugEndpoint";
 import { GetAttributeBySlugEndpoint } from "./endpoints/GetAttributeBySlugEndpoint";
 import { GetPagesEndpoint } from "./endpoints/GetPagesEndpoint";
+import { GetPageBySlugEndpoint } from "./endpoints/GetPageBySlugEndpoint";
 
 const port = process.env.APP_HTTP_PORT ? parseInt(process.env.APP_HTTP_PORT) : null;
 if (!port)
@@ -61,6 +62,7 @@ const routing: Routing = {
                 ":slug": GetAttributeBySlugEndpoint
             },
             pages: {
+                ":slug": GetPageBySlugEndpoint,
                 "": GetPagesEndpoint
             }
         }
