@@ -11,6 +11,7 @@ export type ProductAttribute = z.infer<typeof ProductAttributeSchema>;
 export type VariationAttribute = z.infer<typeof VariationAttributeSchema>;
 export type PriceCirculations = z.infer<typeof PriceCirculationsSchema>;
 export type ProductsStatistic = z.infer<typeof ProductsStatisticSchema>;
+export type PageInfo = z.infer<typeof PageInfoSchema>;
 
 export const ImageSchema = z.object({
     id: z.number(),
@@ -98,3 +99,16 @@ export const ProductsStatisticSchema = z.object({
     min_price: z.number(),
     max_price: z.number()
 });
+
+export const PageInfoSchema = z.object({
+    id: z.number(),
+    slug: z.string(),
+    status: z.string(),
+    type: z.string(),
+    parent: z.number(),
+    title: z.string(),
+    content: z.string(),
+    menu_order: z.number(),
+    meta: z.array(z.any())
+});
+

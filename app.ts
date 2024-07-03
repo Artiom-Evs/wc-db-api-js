@@ -14,6 +14,7 @@ import swaggerUI from "swagger-ui-express";
 import { GetProductBySlugEndpoint } from "./endpoints/GetProductBySlugEndpoint";
 import { GetCategoryBySlugEndpoint } from "./endpoints/GetCategoryBySlugEndpoint";
 import { GetAttributeBySlugEndpoint } from "./endpoints/GetAttributeBySlugEndpoint";
+import { GetPagesEndpoint } from "./endpoints/GetPagesEndpoint";
 
 const port = process.env.APP_HTTP_PORT ? parseInt(process.env.APP_HTTP_PORT) : null;
 if (!port)
@@ -58,6 +59,9 @@ const routing: Routing = {
             },
             attributes: {
                 ":slug": GetAttributeBySlugEndpoint
+            },
+            pages: {
+                "": GetPagesEndpoint
             }
         }
     },
