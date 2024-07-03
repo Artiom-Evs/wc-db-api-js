@@ -109,6 +109,6 @@ export const PageInfoSchema = z.object({
     title: z.string(),
     content: z.string(),
     menu_order: z.number(),
-    meta: z.array(z.any())
+    sections: z.array(z.any())
 });
 

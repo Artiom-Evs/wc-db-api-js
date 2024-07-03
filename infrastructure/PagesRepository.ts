@@ -3,14 +3,18 @@ import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
 
 const GET_ALL_QUERY = `
-select ID AS id, post_author AS author, post_content AS content, post_title AS title, post_status AS status, post_name AS slug, post_parent AS parent, menu_order, post_type AS type
+select ID AS id, post_author AS author, post_content AS content, post_title AS title, post_status AS status, post_name AS slug, post_parent AS parent, menu_order, post_type AS type,
+    m1.meta_value AS sections
 from wp_posts
+LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "sections_json"
 where post_type = "page";
 `;
 
 const GET_BY_SLUG_QUERY = `
-select ID AS id, post_author AS author, post_content AS content, post_title AS title, post_status AS status, post_name AS slug, post_parent AS parent, menu_order, post_type AS type
+select ID AS id, post_author AS author, post_content AS content, post_title AS title, post_status AS status, post_name AS slug, post_parent AS parent, menu_order, post_type AS type,
+    m1.meta_value AS sections
 from wp_posts
+LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "sections_json"
 where post_type = "page"
     AND post_name = ?
 LIMIT 1;
@@ -21,8 +25,8 @@ class PagesRepository extends RepositoryBase {
         const [rows] = await this._pool.execute<any[]>(GET_ALL_QUERY, []);
         const pages = rows as PageInfo[];
 
-        pages.forEach(p => {
-            p.meta = [];
+        pages.forEach(page => {
+            page.sections = page.sections ? JSON.parse(page.sections as any) : [];
         });
 
         return pages;
@@ -33,7 +37,7 @@ class PagesRepository extends RepositoryBase {
         const page = row as PageInfo ?? null;
 
         if (page)
-            page.meta = [];
+            page.sections = page.sections ? JSON.parse(page.sections as any) : [];
 
         return page;
     }
