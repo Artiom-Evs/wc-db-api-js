@@ -12,6 +12,7 @@ export type VariationAttribute = z.infer<typeof VariationAttributeSchema>;
 export type PriceCirculations = z.infer<typeof PriceCirculationsSchema>;
 export type ProductsStatistic = z.infer<typeof ProductsStatisticSchema>;
 export type PageInfo = z.infer<typeof PageInfoSchema>;
+export type MenuItem = z.infer<typeof MenuItemSchema>;
 
 export const ImageSchema = z.object({
     id: z.number(),
@@ -112,3 +113,12 @@ export const PageInfoSchema = z.object({
     sections: z.array(z.any())
 });
 
+export const MenuItemSchema = z.object({
+    title: z.string(),
+    type: z.string(),
+    menu_order: z.number(),
+    parent_id: z.number(),
+    url: z.string(),
+    is_button: z.boolean(),
+    fa_icon_code: z.string()
+});

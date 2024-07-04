@@ -17,6 +17,7 @@ import { GetAttributeBySlugEndpoint } from "./endpoints/GetAttributeBySlugEndpoi
 import { GetAttributeTermsBySlugEndpoint } from "./endpoints/GetAttributeTermsBySlugEndpoint copy";
 import { GetPagesEndpoint } from "./endpoints/GetPagesEndpoint";
 import { GetPageBySlugEndpoint } from "./endpoints/GetPageBySlugEndpoint";
+import { GetMenuItemsByMenuIdEndpoint } from "./endpoints/GetMenuItemsByMenuIdEndpoint";
 
 const port = process.env.APP_HTTP_PORT ? parseInt(process.env.APP_HTTP_PORT) : null;
 if (!port)
@@ -71,6 +72,9 @@ const routing: Routing = {
             pages: {
                 ":slug": GetPageBySlugEndpoint,
                 "": GetPagesEndpoint
+            },
+            "menu-items": {
+                ":id": GetMenuItemsByMenuIdEndpoint
             }
         }
     },

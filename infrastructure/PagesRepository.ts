@@ -1,4 +1,4 @@
-import { Category, PageInfo } from "../schemas";
+import { PageInfo } from "../schemas";
 import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
 
