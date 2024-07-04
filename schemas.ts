@@ -14,6 +14,7 @@ export type ProductsStatistic = z.infer<typeof ProductsStatisticSchema>;
 export type PageInfo = z.infer<typeof PageInfoSchema>;
 export type MenuItem = z.infer<typeof MenuItemSchema>;
 export type Menu = z.infer<typeof MenuSchema>;
+export type Post = z.infer<typeof PostSchema>;
 
 export const ImageSchema = z.object({
     id: z.number(),
@@ -127,4 +128,16 @@ export const MenuItemSchema = z.object({
 export const MenuSchema = z.object({
     id: z.number(),
     items: z.array(MenuItemSchema)
+});
+
+export const PostSchema = z.object({
+    id: z.number(),
+    slug: z.string(),
+    status: z.string(),
+    type: z.string(),
+    parent: z.number(),
+    title: z.string(),
+    content: z.string(),
+    excerpt: z.string(),
+    menu_order: z.number()
 });

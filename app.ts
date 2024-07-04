@@ -19,6 +19,7 @@ import { GetPagesEndpoint } from "./endpoints/GetPagesEndpoint";
 import { GetPageBySlugEndpoint } from "./endpoints/GetPageBySlugEndpoint";
 import { GetMenuItemsByMenuIdEndpoint } from "./endpoints/GetMenuItemsByMenuIdEndpoint";
 import { GetMenuItemsEndpoint } from "./endpoints/GetMenuItemsEndpoint";
+import { GetPostsEndpoint } from "./endpoints/GetPostsEndpoint";
 
 const port = process.env.APP_HTTP_PORT ? parseInt(process.env.APP_HTTP_PORT) : null;
 if (!port)
@@ -77,6 +78,9 @@ const routing: Routing = {
             "menu-items": {
                 "": GetMenuItemsEndpoint,
                 ":id": GetMenuItemsByMenuIdEndpoint
+            },
+            posts: {
+                "": GetPostsEndpoint
             }
         }
     },
