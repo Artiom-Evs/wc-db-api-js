@@ -139,5 +139,6 @@ export const PostSchema = z.object({
     title: z.string(),
     content: z.string(),
     excerpt: z.string(),
-    menu_order: z.number()
+    menu_order: z.number(),
+    categories: z.array(CategorySchema)
 });

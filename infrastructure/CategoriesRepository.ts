@@ -53,6 +53,23 @@ JOIN wp_terms AS T
 WHERE TR.object_id IN (${ids.map(() => "?").join(", ")}) AND TT.taxonomy = "product_cat";
 `;
 
+const createGetPostsCategoriesQuery = (ids: number[]) => `
+SELECT
+    TR.object_id, 
+    T.term_id AS id, 
+    T.name, 
+    T.slug, 
+    TT.parent AS parent_id, 
+    TT.description, 
+    TT.count
+FROM wp_term_relationships AS TR
+JOIN wp_term_taxonomy AS TT 
+    ON TR.term_taxonomy_id = TT.term_taxonomy_id
+JOIN wp_terms AS T 
+	ON TT.term_id = T.term_id
+WHERE TR.object_id IN (${ids.map(() => "?").join(", ")}) AND TT.taxonomy = "category";
+`;
+
 export interface DBCategory {
     object_id: number,
     id: number,
@@ -106,6 +123,12 @@ class CategoriesRepository extends RepositoryBase {
         const [categoryRows] = await this._pool.execute(query, productIds);
 
         return categoryRows as DBCategory[];
+    }
+
+    public async getPostsCategories(postIds: number[]): Promise<DBCategory[]> {
+        const query = createGetPostsCategoriesQuery (postIds);
+        const [rows] = await this._pool.execute<any[]>(query, postIds);
+        return rows as DBCategory[];
     }
 }
 
