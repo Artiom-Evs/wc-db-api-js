@@ -1,0 +1,19 @@
+version: "3.1"
+
+services:
+  wc-db-api:
+    container_name: wc-db-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    healthcheck:
+      test: curl -f http://localhost:8090 || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    ports:
+      - 8090:8090
+    env_file:
+      - .env.local
