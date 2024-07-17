@@ -36,7 +36,7 @@ const GET_TERMS_BY_SLUG_QUERY = `
 SELECT t.term_id AS id, t.name, t.slug
 FROM wp_terms AS t 
 INNER JOIN wp_term_taxonomy AS tt ON t.term_id = tt.term_id
-WHERE tt.taxonomy = CONCAT("pa_", ?);
+WHERE tt.taxonomy = ?;
 `;
 
 
@@ -93,6 +93,9 @@ class AttributesRepository extends RepositoryBase {
     }
 
     public async getBySlug(slug: string): Promise<Attribute | null> {
+        if (slug.startsWith("pa_"))
+            slug = slug.substring(3);
+
         const [rows] = await pool.execute(GET_BY_SLUG_QUERY, [ slug]);
         const attributes = rows as Attribute[];
         const attribute = attributes && Array.isArray(attributes) && attributes.length > 0 ? attributes[0] : null;
@@ -108,6 +111,9 @@ class AttributesRepository extends RepositoryBase {
     }
 
     public async getTermsBySlug(attributeSlug: string): Promise<AttributeTerm[]> {
+        if (!attributeSlug.startsWith("pa_"))
+            attributeSlug = "pa_" + attributeSlug;
+
         const [rows] = await pool.execute(GET_TERMS_BY_SLUG_QUERY , [ attributeSlug]);
         const terms = rows as AttributeTerm[];        
 

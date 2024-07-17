@@ -154,7 +154,10 @@ class ProductsRepository extends RepositoryBase {
         attribute = "",
         attribute_term = "",
         search = ""
-    }: GetProductsOptions): Promise<Product[]> {
+    }: GetProductsOptions): Promise<Product[]> 
+    {
+        if (attribute != "" && !attribute.startsWith("pa_"))
+            attribute = "pa_" + attribute;
 
         const [[rows]] = await this._pool.execute<[any[]]>(GET_ALL_QUERY, [
             per_page,
