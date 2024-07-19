@@ -193,14 +193,14 @@ class ProductsRepository extends RepositoryBase {
             product.variations = variations.filter(v => v.parent_id === product.id);
 
             product.type = product.variations.length === 0 ? "simple" : "variable";
-            product.price = product.price != null ? parseInt(product.price as any) : null;
+            product.price = product.price != null ? parseFloat(product.price as any) : null;
             product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
 
             if (product.price_circulations)
                 product.price_circulations = unserialize((product as any).price_circulations);
             
             product.variations.forEach(variation => {
-                variation.price = variation.price != null ? parseInt(variation.price as any) : null;
+                variation.price = variation.price != null ? parseFloat(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
                 variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
 
@@ -238,14 +238,14 @@ class ProductsRepository extends RepositoryBase {
             product.variations = variations.filter(v => v.parent_id === product.id);
 
             product.type = product.variations.length === 0 ? "simple" : "variable";
-            product.price = product.price != null ? parseInt(product.price as any) : null;
+            product.price = product.price != null ? parseFloat(product.price as any) : null;
             product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
 
             if (product.price_circulations)
                 product.price_circulations = unserialize((product as any).price_circulations);
             
             product.variations.forEach(variation => {
-                variation.price = variation.price != null ? parseInt(variation.price as any) : null;
+                variation.price = variation.price != null ? parseFloat(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
                 variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
 
@@ -284,14 +284,14 @@ class ProductsRepository extends RepositoryBase {
             product.variations = variations.filter(v => v.parent_id === product.id);
 
             product.type = product.variations.length === 0 ? "simple" : "variable";
-            product.price = product.price != null ? parseInt(product.price as any) : null;
+            product.price = product.price != null ? parseFloat(product.price as any) : null;
             product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
 
             if (product.price_circulations)
                 product.price_circulations = unserialize((product as any).price_circulations);
             
             product.variations.forEach(variation => {
-                variation.price = variation.price != null ? parseInt(variation.price as any) : null;
+                variation.price = variation.price != null ? parseFloat(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
                 variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
 
@@ -317,7 +317,7 @@ class ProductsRepository extends RepositoryBase {
         const categories = await categoriesRepository.getProductsCategories([id]);
 
         product.type = variations.length === 0 ? "simple" : "variable";
-        product.price = product.price != null ? parseInt(product.price as any) : null;
+        product.price = product.price != null ? parseFloat(product.price as any) : null;
         product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
 
         if (product.price_circulations)
@@ -335,7 +335,7 @@ class ProductsRepository extends RepositoryBase {
         product.variations = variations;
 
         product.variations.forEach(variation => {
-            variation.price = variation.price != null ? parseInt(variation.price as any) : null;
+            variation.price = variation.price != null ? parseFloat(variation.price as any) : null;
             variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
             variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
 
@@ -360,7 +360,7 @@ const variations = await this.getProductsVariations([product.id]);
         const categories = await categoriesRepository.getProductsCategories([product.id]);
 
         product.type = variations.length === 0 ? "simple" : "variable";
-        product.price = product.price != null ? parseInt(product.price as any) : null;
+        product.price = product.price != null ? parseFloat(product.price as any) : null;
         product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
 
         if (product.price_circulations)
@@ -378,7 +378,7 @@ const variations = await this.getProductsVariations([product.id]);
         product.variations = variations;
 
         product.variations.forEach(variation => {
-            variation.price = variation.price != null ? parseInt(variation.price as any) : null;
+            variation.price = variation.price != null ? parseFloat(variation.price as any) : null;
             variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
             variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
 
