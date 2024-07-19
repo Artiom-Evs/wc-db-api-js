@@ -148,7 +148,7 @@ class ProductsRepository extends RepositoryBase {
         per_page = 100,
         min_price = -1,
         max_price = -1,
-        order_by = "date",
+        order_by = "quantity",
         order = "desc",
         category = "",
         attribute = "",
