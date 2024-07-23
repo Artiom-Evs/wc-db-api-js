@@ -7,11 +7,11 @@ import categoriesRepository from "./CategoriesRepository";
 import imagesRepository, { DBImage } from "./ImagesRepository";
 
 const GET_ALL_QUERY = `
-CALL GetProductsV2(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+CALL GetProductsV3(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 `;
 
 const GET_STATISTIC_QUERY = `
-CALL GetProductsStatistic(?, ?, ?, ?);
+CALL GetProductsStatisticV2(?, ?, ?, ?, ?, ?);
 `;
 
 const GET_BY_ID_QUERY = `
@@ -121,6 +121,8 @@ export interface ProductsStatistic {
 
 class ProductsRepository extends RepositoryBase {
     public async getProductsStatistic({
+        min_price = -1,
+        max_price = -1,
         category = "",
         attribute = "",
         attribute_term = "",
@@ -128,6 +130,8 @@ class ProductsRepository extends RepositoryBase {
     }): Promise<ProductsStatistic> {
 
         const [[[result]]] = await this._pool.execute<[any[]]>(GET_STATISTIC_QUERY, [
+            min_price,
+            max_price,
             category,
             attribute,
             attribute_term,
