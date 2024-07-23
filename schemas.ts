@@ -40,7 +40,8 @@ export const AttributeSchema = z.object({
 export const AttributeTermSchema = z.object({
     id: z.number(),
     name: z.string().min(1),
-    slug: z.string().min(1)
+    slug: z.string().min(1),
+    menu_order: z.number().optional()
 });
 
 export const VariationAttributeSchema = z.object({

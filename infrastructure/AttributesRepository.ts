@@ -22,21 +22,25 @@ LIMIT 1;
 `;
 
 const GET_TERMS_QUERY = `
-SELECT t.term_id AS id, t.name, t.slug
+SELECT t.term_id AS id, t.name, t.slug, IFNULL(CAST(tm.meta_value AS INT), 0) AS menu_order
 FROM wp_terms AS t 
-INNER JOIN wp_term_taxonomy AS tt ON t.term_id = tt.term_id
+LEFT JOIN wp_term_taxonomy AS tt ON t.term_id = tt.term_id
+LEFT JOIN wp_termmeta AS tm ON t.term_id = tm.term_id AND tm.meta_key LIKE "order_%"
 WHERE tt.taxonomy = CONCAT("pa_",
     (SELECT attribute_label
     FROM wp_woocommerce_attribute_taxonomies
     WHERE attribute_id = ?
     LIMIT 1))
+ORDER BY IFNULL(CAST(tm.meta_value AS INT), 0) ASC;
 `;
 
 const GET_TERMS_BY_SLUG_QUERY = `
-SELECT t.term_id AS id, t.name, t.slug
+SELECT t.term_id AS id, t.name, t.slug, IFNULL(CAST(tm.meta_value AS INT), 0) AS menu_order
 FROM wp_terms AS t 
-INNER JOIN wp_term_taxonomy AS tt ON t.term_id = tt.term_id
-WHERE tt.taxonomy = ?;
+LEFT JOIN wp_term_taxonomy AS tt ON t.term_id = tt.term_id
+LEFT JOIN wp_termmeta AS tm ON t.term_id = tm.term_id AND tm.meta_key LIKE "order_%"
+WHERE tt.taxonomy = ?
+ORDER BY IFNULL(CAST(tm.meta_value AS INT), 0) ASC
 `;
 
 
