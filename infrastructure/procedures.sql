@@ -382,7 +382,6 @@ BEGIN
     FROM wp_posts
     LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
     LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_sku"
-    LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_price"
     WHERE post_type = "product" 
         AND post_status = "publish"
         AND (minPrice = -1 OR CAST(m1.meta_value AS DECIMAL(10, 4)) >= minPrice)
@@ -401,7 +400,7 @@ BEGIN
         AND (attributeName = "" OR ID IN
             (SELECT product_or_parent_id
             FROM wp_wc_product_attributes_lookup
-            WHERE taxonomy = attributeName COLLATE utf8mb4_unicode_ci AND (termName = """" OR term_id IN
+            WHERE taxonomy = attributeName COLLATE utf8mb4_unicode_ci AND (termName = "" OR term_id IN
                 (SELECT term_id
                 FROM wp_terms
                 WHERE termName = "" OR slug LIKE CONCAT("%", termName, "%") COLLATE utf8mb4_unicode_ci))));
