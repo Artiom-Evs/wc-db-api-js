@@ -71,10 +71,11 @@ export const VariationSchema = z.object({
     name: z.string().min(1),
     slug: z.string().min(1),
     description: z.string(),
-    stock_quantity: z.number().nullable(),
-    price: z.number().nullable(),
     created: ez.dateOut(),
     modified: ez.dateOut(),
+    stock_quantity: z.number().nullable(),
+    price: z.number().nullable(),
+    price_circulations: PriceCirculationsSchema.nullable(),
     images: z.array(ImageSchema),
     attributes: z.array(VariationAttributeSchema)
 });

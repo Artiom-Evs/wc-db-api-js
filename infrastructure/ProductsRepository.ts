@@ -42,7 +42,7 @@ LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stoc
 LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
 LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_product_attributes"
 LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "_default_attributes"
-LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key = "_price_circulations"
+LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key =   
 WHERE ID IN (${ids.map(() => "?").join(", ")})
     AND post_type = "product" 
     AND post_status = "publish"
@@ -88,13 +88,15 @@ SELECT
     CAST(m2.meta_value AS DECIMAL(4)) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS variation_image_gallery,
-    m5.meta_value AS description
+    m5.meta_value AS description,
+    m6.meta_value AS price_circulations
 FROM wp_posts
 LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
 LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
 LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
 LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "variation_image_gallery"
 LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "_variation_description"
+LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key = "_price_circulations"
 WHERE post_parent IN (${ids.map(() => "?").join(", ")}) 
     AND post_type = "product_variation" 
     AND post_status = "publish";
@@ -398,8 +400,14 @@ const variations = await this.getProductsVariations([product.id]);
 
         const query = createGetProductsVariationsQuery(productIds);
         const [variationRows] = await this._pool.execute(query, productIds);
+        const variations = variationRows as Variation[];
 
-        return variationRows as Variation[];
+        variations.map(v => {
+            if (v.price_circulations)
+                v.price_circulations = unserialize((v as any).price_circulations);
+        });
+
+        return variations;
     }
 
     private initProductAttributes(product: Product, globalAttributes: Attribute[], attributesTerms: DBProductAttributeTerm[]): void {
