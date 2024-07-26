@@ -6,9 +6,65 @@ import attributesRepository, { DBProductAttributeTerm, DBVariationAttribute } fr
 import categoriesRepository from "./CategoriesRepository";
 import imagesRepository, { DBImage } from "./ImagesRepository";
 
-const GET_ALL_QUERY = `
-CALL GetProductsV3(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+const createGetAllProductsQuery = (orderBy:string, direction: string) => {
+    let orderByFieldName = "stock_quantity";
+
+    orderBy = orderBy.toLowerCase();
+    direction = direction.toLowerCase();
+
+    if (orderBy === "price")
+        orderByFieldName = "price";
+    else if (orderBy === "date")
+        orderByFieldName = "date";
+    else if (orderBy === "name")
+        orderByFieldName = "name";
+
+    return `
+SELECT 
+    ID AS id, 
+    post_title AS name, 
+    post_name AS slug, 
+    post_content AS description, 
+    post_date AS created, 
+    post_modified AS modified, 
+    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
+    CAST(m2.meta_value AS INT) AS stock_quantity,
+    m3.meta_value AS sku,
+    m4.meta_value AS attributes,
+    m5.meta_value AS default_attributes,
+    m6.meta_value AS price_circulations
+FROM wp_posts
+LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
+LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
+LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
+LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_product_attributes"
+LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "_default_attributes"
+LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key = "_price_circulations"
+WHERE post_type = "product" AND post_status = "publish"
+    AND (? = -1 OR CAST(m1.meta_value AS DECIMAL(10, 2)) >= ?)
+    AND (? = -1 OR CAST(m1.meta_value AS DECIMAL(10, 2)) <= ?)
+    AND (? = "" OR MATCH(post_title) AGAINST(CONCAT("*", ?, "*")))
+    
+    AND (? = "" OR ID IN
+        (SELECT object_id FROM wp_term_relationships
+        WHERE term_taxonomy_id IN
+            (SELECT term_taxonomy_id FROM wp_term_taxonomy
+            WHERE taxonomy = "product_cat" AND term_taxonomy_id IN
+                (SELECT term_id FROM wp_terms
+                WHERE slug = ?))))
+
+    AND (? = "" OR ID IN
+        (SELECT product_or_parent_id FROM wp_wc_product_attributes_lookup
+        WHERE taxonomy = ? AND (? = "" OR term_id IN
+            (SELECT term_id FROM wp_terms
+            WHERE ? = "" OR slug LIKE CONCAT("%", ?, "%")))))
+        
+ORDER BY ${orderByFieldName} ${direction === "asc" ? "ASC" : "DESC"}
+    LIMIT ? OFFSET ?;
+
+
 `;
+}
 
 const GET_STATISTIC_QUERY = `
 CALL GetProductsStatisticV2(?, ?, ?, ?, ?, ?);
@@ -31,7 +87,7 @@ SELECT
     post_date AS created, 
     post_modified AS modified, 
     CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
-    CAST(m2.meta_value AS DECIMAL(4)) AS stock_quantity,
+    CAST(m2.meta_value AS INT) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS attributes,
     m5.meta_value AS default_attributes,
@@ -58,7 +114,7 @@ SELECT
     post_date AS created, 
     post_modified AS modified, 
     CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
-    CAST(m2.meta_value AS DECIMAL(4)) AS stock_quantity,
+    CAST(m2.meta_value AS INT) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS attributes,
     m5.meta_value AS default_attributes,
@@ -85,7 +141,7 @@ SELECT
     post_date AS created, 
     post_modified AS modified,
     CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
-    CAST(m2.meta_value AS DECIMAL(4)) AS stock_quantity,
+    CAST(m2.meta_value AS INT) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS variation_image_gallery,
     m5.meta_value AS description,
@@ -165,17 +221,15 @@ class ProductsRepository extends RepositoryBase {
         if (attribute != "" && !attribute.startsWith("pa_"))
             attribute = "pa_" + attribute;
 
-        const [[rows]] = await this._pool.execute<[any[]]>(GET_ALL_QUERY, [
-            per_page,
-            per_page * (page - 1),
-            min_price,
-            max_price,
-            order_by,
-            order,
-            category,
-            attribute,
-            attribute_term,
-            search
+        const query = createGetAllProductsQuery(order_by, order);
+        const [rows] = await this._pool.execute<any[]>(query, [
+            min_price, min_price,
+            max_price, max_price,
+            search, search, 
+            category, category,
+            attribute, attribute,
+            attribute_term, attribute_term, attribute_term,
+            per_page, per_page * (page - 1)
         ]);
 
         const products = rows as Product[];
