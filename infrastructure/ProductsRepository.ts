@@ -7,13 +7,13 @@ import categoriesRepository from "./CategoriesRepository";
 import imagesRepository, { DBImage } from "./ImagesRepository";
 
 const createGetAllProductsQuery = (orderBy:string, direction: string) => {
-    let orderByFieldName = "stock_quantity";
+    let orderByFieldName = "CAST(m2.meta_value AS INT)";
 
     orderBy = orderBy.toLowerCase();
     direction = direction.toLowerCase();
 
     if (orderBy === "price")
-        orderByFieldName = "price";
+        orderByFieldName = "CAST(m1.meta_value AS DECIMAL(10, 2))";
     else if (orderBy === "date")
         orderByFieldName = "date";
     else if (orderBy === "name")
@@ -22,27 +22,10 @@ const createGetAllProductsQuery = (orderBy:string, direction: string) => {
     return `
     WITH Products as
 (
-    SELECT 
-        ID AS id, 
-        post_parent as parent_id,
-        post_title AS name, 
-        post_name AS slug, 
-        post_content AS description, 
-        post_date AS created, 
-        post_modified AS modified, 
-        CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
-        CAST(m2.meta_value AS INT) AS stock_quantity,
-        m3.meta_value AS sku,
-        m4.meta_value AS attributes,
-        m5.meta_value AS default_attributes,
-        m6.meta_value AS price_circulations
+    SELECT  ID AS id
     FROM wp_posts
     LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
     LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
-    LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
-    LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_product_attributes"
-    LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "_default_attributes"
-    LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key = "_price_circulations"
     WHERE post_type = "product" AND post_status = "publish"
         AND (? = -1 OR CAST(m1.meta_value AS DECIMAL(10, 2)) >= ?)
         AND (? = -1 OR CAST(m1.meta_value AS DECIMAL(10, 2)) <= ?)
@@ -65,8 +48,6 @@ const createGetAllProductsQuery = (orderBy:string, direction: string) => {
     ORDER BY ${orderByFieldName} ${direction === "asc" ? "ASC" : "DESC"}
     LIMIT ? OFFSET ?
 )
-select * from Products
-UNION 
 SELECT 
     ID AS id, 
     post_parent as parent_id,
@@ -89,7 +70,9 @@ LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_prod
 LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "_default_attributes"
 LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key = "_price_circulations"
 WHERE post_type = "product" AND post_status = "publish"
-    AND ID IN (select id from Products);
+    AND (ID IN (select id from Products)
+        OR post_parent IN (select id from Products));
+
 `;
 }
 
