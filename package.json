@@ -10,7 +10,7 @@
     "name": ""
   },
   "scripts": {
-    "dev": "npm run clean & npm run build & node --env-file .env.local .",
+    "dev": "npm run clean && npm run build && node --env-file .env.local .",
     "build": "tsc --build",
     "clean": "tsc --build --clean"
   },
