@@ -69,7 +69,7 @@ LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
 LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_product_attributes"
 LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "_default_attributes"
 LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key = "_price_circulations"
-WHERE post_type = "product" AND post_status = "publish"
+WHERE (post_type = "product_variation" OR post_type = "product") AND post_status = "publish"
     AND (ID IN (select id from Products)
         OR post_parent IN (select id from Products));
 
@@ -268,11 +268,14 @@ class ProductsRepository extends RepositoryBase {
 
             if (product.price_circulations)
                 product.price_circulations = unserialize((product as any).price_circulations);
-            
+
             product.variations.forEach(variation => {
                 variation.price = variation.price != null ? parseFloat(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
                 variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
+
+                if (variation.price_circulations && typeof(variation.price_circulations) === "string") 
+                    variation.price_circulations = unserialize((variation as any).price_circulations);
 
                 this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
             });
