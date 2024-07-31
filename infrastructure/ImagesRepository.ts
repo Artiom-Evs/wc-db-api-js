@@ -1,3 +1,4 @@
+import { unserialize } from "php-serialize";
 import { Image } from "../schemas";
 import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
@@ -17,8 +18,10 @@ SELECT
     ID AS id, 
     post_parent AS parent_id, 
     post_title AS name, 
-    guid AS src
-FROM wp_posts
+    guid AS src,
+    pm.meta_value AS meta
+FROM wp_posts as p 
+INNER JOIN wp_postmeta AS pm ON p.ID = pm.post_id AND pm.meta_key = "_wp_attachment_metadata"
 WHERE post_parent IN (${ids.map(() => "?").join(", ")}) AND post_mime_type LIKE "image/%";
 `;
 
@@ -26,7 +29,8 @@ export interface DBImage {
     id: number,
     parent_id: number,
     name: string,
-    src: string
+    src: string,
+    meta: string
 }
 
 class ImagesRepository extends RepositoryBase {
@@ -36,8 +40,11 @@ class ImagesRepository extends RepositoryBase {
 
         const query = createGetProductsImagesQuery(productIds);
         const [variationRows] = await this._pool.execute(query, productIds);
+        const dbImages = variationRows as DBImage[];
 
-        return variationRows as DBImage[];
+        dbImages.forEach(i => this.changeImageSize(i));
+            
+        return dbImages;
     }
 
     public async getImagesByIds(imageIds: number[]): Promise<DBImage[]> {
@@ -49,6 +56,16 @@ class ImagesRepository extends RepositoryBase {
 
         return variationRows as DBImage[];
     }    
+
+    private changeImageSize(dbImage: DBImage): void {
+        const meta = unserialize(dbImage.meta);
+        const targetSize = meta?.sizes?.medium;
+
+        if (!targetSize) return;
+        
+        const lastPathSeparator = dbImage.src.lastIndexOf("/");
+        dbImage.src = dbImage.src.substring(0, lastPathSeparator + 1) + targetSize.file;
+    }
 }
 
 const imagesRepository = new ImagesRepository (pool);
