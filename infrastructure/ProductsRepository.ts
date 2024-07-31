@@ -102,7 +102,7 @@ WHERE post_parent IN (${ids.map(() => "?").join(", ")})
     AND post_status = "publish";
 `;
 
-interface GetProductsOptions {
+export interface GetProductsOptions {
     page?: number,
     per_page?: number,
     order_by?: "date" | "price" | "quantity" | "name",
