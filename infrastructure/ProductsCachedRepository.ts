@@ -2,9 +2,7 @@ import pool from "./DbConnectionPool";
 import { Product, ProductsStatistic } from "schemas";
 import RepositoryBase from "./RepositoryBase";
 import { GetProductsOptions } from "./ProductsRepository";
-import productsCache, { ProductCacheItem } from "../services/ProductsCache";
 import docStorage from "../services/DocStorage";
-
 
 class ProductsCachedRepository extends RepositoryBase {
     public async getAll(options: GetProductsOptions): Promise<Product[]> {
