@@ -58,7 +58,7 @@ class ProductsCachedRepository extends RepositoryBase {
 
     private getSorter(orderBy: string, direction: "asc" | "desc"): (a: ProductCacheItem, b: ProductCacheItem) => number {
         switch (orderBy) {
-            case "stock": 
+            case "quantity": 
                 return direction === "asc" 
                     ? (a, b) => (a.product.stock_quantity ?? 0) - (b.product.stock_quantity ?? 0)
                     : (a, b) => (b.product.stock_quantity ?? 0) - (a.product.stock_quantity ?? 0);
@@ -72,13 +72,9 @@ class ProductsCachedRepository extends RepositoryBase {
                     : (a, b) => b.product.name.localeCompare(a.product.name, undefined, { sensitivity: "base" });
             default:
                 return direction === "asc" 
-                    ? (a, b) => a.created - b.created
-                    : (a, b) => b.created - a.created;
+                    ? (a, b) => (a.product.stock_quantity ?? 0) - (b.product.stock_quantity ?? 0)
+                    : (a, b) => (b.product.stock_quantity ?? 0) - (a.product.stock_quantity ?? 0);
         }
-    }
-
-    private async updateStocks(products: Product[]): Promise<void> {
-
     }
 
     private getMinAndMaxPrice(products: ProductCacheItem[]): [min: number, max: number] {
