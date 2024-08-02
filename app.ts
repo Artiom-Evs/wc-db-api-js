@@ -8,7 +8,6 @@ import { GetProductEndpoint } from "./endpoints/GetProductEndpoint";
 import { GetProductsEndpoint } from "./endpoints/GetProductsEndpoint";
 import { Documentation, createConfig } from "express-zod-api";
 import { Routing } from "express-zod-api";
-
 import { createServer } from "express-zod-api";
 import swaggerUI from "swagger-ui-express";
 import { GetProductBySlugEndpoint } from "./endpoints/GetProductBySlugEndpoint";
@@ -21,6 +20,9 @@ import { GetMenuItemsByMenuIdEndpoint } from "./endpoints/GetMenuItemsByMenuIdEn
 import { GetMenuItemsEndpoint } from "./endpoints/GetMenuItemsEndpoint";
 import { GetPostsEndpoint } from "./endpoints/GetPostsEndpoint";
 import { GetPostBySlugEndpoint } from "./endpoints/GetPostBySlugEndpoint";
+import synchronizationWorker from "./workers/CacheSynchronizationWorker";
+
+synchronizationWorker.start();
 
 const port = process.env.APP_HTTP_PORT ? parseInt(process.env.APP_HTTP_PORT) : null;
 if (!port)
