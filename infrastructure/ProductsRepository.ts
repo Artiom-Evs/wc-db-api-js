@@ -73,7 +73,8 @@ LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key = "_pric
 LEFT JOIN wp_postmeta AS m7 ON wp_posts.ID = m7.post_id AND m7.meta_key = "variation_image_gallery"
 WHERE (post_type = "product_variation" OR post_type = "product") AND post_status = "publish"
     AND (ID IN (select id from Products)
-        OR post_parent IN (select id from Products));
+        OR post_parent IN (select id from Products))
+ORDER BY ${orderByFieldName} ${direction === "asc" ? "ASC" : "DESC"}
 
 `;
 }
