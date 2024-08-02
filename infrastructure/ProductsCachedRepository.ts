@@ -2,102 +2,115 @@ import pool from "./DbConnectionPool";
 import { Product, ProductsStatistic } from "schemas";
 import RepositoryBase from "./RepositoryBase";
 import { GetProductsOptions } from "./ProductsRepository";
-import docStorage from "../services/DocStorage";
+import productsCache, { ProductCacheItem } from "../services/ProductsCache";
 
 class ProductsCachedRepository extends RepositoryBase {
-    public async getAll(options: GetProductsOptions): Promise<Product[]> {
-        const collection = docStorage.collection<Product>("products");
-
-        const filter = this.buildFilter(options);
-        const limit = options.per_page ?? 100;
-        const offset = limit * ((options.page ?? 1) - 1);
-
-        const products = await collection
-            .find(filter)
-            .skip(offset)
-            .limit(limit)
-            .toArray();
-
+    public async getAll({
+        page = 1,
+        per_page = 100,
+        min_price = -1,
+        max_price = -1,
+        order_by = "quantity",
+        order = "desc",
+        category = "",
+        attribute = "",
+        attribute_term = "",
+        search = ""
+    }: GetProductsOptions): Promise<Product[]>
+    {
+        const products = (await productsCache.GetProducts())
+            .filter(p => category === "" || p.product.categories.some(c => c.slug === category))
+            .filter(p => min_price === -1 || (p.product.price && p.product.price >= min_price))
+            .filter(p => max_price === -1 || (p.product.price && p.product.price < max_price))
+            .filter(this.filterByAttribute(attribute, attribute_term))
+            .filter(p => search === "" || p.product.sku.indexOf(search) > -1 || p.product.name.indexOf(search) > -1)
+            .sort(this.getSorter(order_by, order))
+            .slice(per_page * (page - 1), per_page * page)
+            .map(item => item.product);
+        
         return products;
     }
 
-    public async getStatistic(options: GetProductsOptions): Promise<ProductsStatistic> {
-        const collection = docStorage.collection<Product>("products");
-
-        const filter = this.buildFilter(options);
-
-        const pipeline = [
-            { $match: filter },
-            {
-                $group: {
-                    _id: null,
-                    products_count: { $sum: 1 },
-                    min_price: { $min: "$price" },
-                    max_price: { $max: "$price" }
-                }
-            },
-            {
-                $project: {
-                    _id: 0,
-                    products_count: 1,
-                    min_price: 1,
-                    max_price: 1
-                }
-            }
-        ];
-
-        const statistic = await collection
-            .aggregate<ProductsStatistic>(pipeline)
-            .toArray();
-
-        return statistic?.[0] ?? { products_count: 0, min_price: 0, max_price: 0 };
+    public async getStatistic({
+        min_price = -1,
+        max_price = -1,
+        category = "",
+        attribute = "",
+        attribute_term = "",
+        search = ""
+    }): Promise<ProductsStatistic> 
+    {
+        const products = (await productsCache.GetProducts())
+        .filter(p => category === "" || p.product.categories.some(c => c.slug === category))
+            .filter(p => min_price === -1 || (p.product.price && p.product.price >= min_price))
+            .filter(p => max_price === -1 || (p.product.price && p.product.price < max_price))
+            .filter(this.filterByAttribute(attribute, attribute_term))
+            .filter(p => search === "" || p.product.sku.indexOf(search) > -1 || p.product.name.indexOf(search) > -1);
+            
+        const [min, max] = this.getMinAndMaxPrice(products);
+        
+        return {
+            products_count: products.length,
+            min_price: min,
+            max_price: max
+        };
     }
 
-    private buildFilter(options: GetProductsOptions): any {
-        const filter: any = { };
-
-        if (options.category)
-            filter.categories = {
-                $elemMatch: { slug: options.category }
-            };
-        
-        if (options.min_price || options.max_price) {
-            filter.price = { };
-            if (options.min_price)
-                filter.price.$gt = options.min_price;
-            if (options.max_price)
-                filter.price.$lt = options.max_price;
+    private getSorter(orderBy: string, direction: "asc" | "desc"): (a: ProductCacheItem, b: ProductCacheItem) => number {
+        switch (orderBy) {
+            case "stock": 
+                return direction === "asc" 
+                    ? (a, b) => (a.product.stock_quantity ?? 0) - (b.product.stock_quantity ?? 0)
+                    : (a, b) => (b.product.stock_quantity ?? 0) - (a.product.stock_quantity ?? 0);
+            case "price": 
+                return direction === "asc" 
+                    ? (a, b) => (a.product.price ?? 0) - (b.product.price ?? 0)
+                    : (a, b) => (b.product.price ?? 0) - (a.product.price ?? 0);
+            case "name":
+                return direction === "asc" 
+                    ? (a, b) => a.product.name.localeCompare(b.product.name, undefined, { sensitivity: "base" })
+                    : (a, b) => b.product.name.localeCompare(a.product.name, undefined, { sensitivity: "base" });
+            default:
+                return direction === "asc" 
+                    ? (a, b) => a.created - b.created
+                    : (a, b) => b.created - a.created;
         }
+    }
 
-        if (options.attribute) {
-            filter.attributes = {
-                $elemMatch: { slug: options.attribute }
-            };
+    private async updateStocks(products: Product[]): Promise<void> {
 
-            if (options.attribute_term)
-                filter.attributes.$elemMatch.options = {
-                    $elemMatch: {  slug: { $regex: options.attribute_term } }
-                };
+    }
+
+    private getMinAndMaxPrice(products: ProductCacheItem[]): [min: number, max: number] {
+        let min = 1000000000;
+        let max = 0;
+
+        products.forEach(product => {
+            product.product.variations.forEach(variation => {
+                if (variation.price && variation.price < min)
+                    min = variation.price;
+                if (variation.price && variation.price > max)
+                    max = variation.price;
+            })
+        });
+
+        return [min, max];
+    }
+
+    private filterByAttribute(attribute: string, attribute_term: string): (p: ProductCacheItem) => boolean {
+        return (p: ProductCacheItem) => {
+            if (attribute === "" && attribute_term === "")
+                return true;
+
+            const existedAttribute = p.product.attributes.find(a => a.slug === attribute);
+
+            if (!existedAttribute)
+                return false;
+            else if (attribute_term === "")
+                return true;
+            else 
+            return existedAttribute.options.some(o => o.slug.indexOf(attribute_term) > -1);
         }
-
-        if (options.search) {
-            filter.$or = [
-                { sku: { $regex: options.search, $options: "i" } },
-                { name: { $regex: options.search, $options: "i" } },
-                {
-                    variations: {
-                        $elemMatch: {
-                            $or: [
-                                { sku: { $regex: options.search, $options: "i" } },
-                                { name: { $regex: options.search, $options: "i" } }
-                            ]
-                        }
-                    }
-                }
-            ]
-        }
-        
-        return filter;
     }
 }
 

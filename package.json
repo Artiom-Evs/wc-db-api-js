@@ -19,6 +19,7 @@
     "@types/mongodb": "^4.0.7",
     "@types/node": "^14.14.7",
     "@types/php-serialize": "^3.0.4",
+    "@types/rwlock": "^5.0.6",
     "@types/swagger-ui-express": "^4.1.6",
     "@typescript-eslint/eslint-plugin": "^5.33.0",
     "@typescript-eslint/parser": "^5.33.0",
@@ -40,6 +41,7 @@
     "mongodb": "^6.8.0",
     "mysql2": "^3.10.0",
     "php-serialize": "^4.1.1",
+    "rwlock": "^5.0.0",
     "swagger-ui-express": "^5.0.1",
     "typescript": "^5.4.5"
   }
