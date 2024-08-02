@@ -2,6 +2,7 @@ import { z } from "zod";
 import { defaultEndpointsFactory } from "express-zod-api";
 import { ProductSchema, ProductsStatisticSchema } from "../schemas";
 import productsRepository from "../infrastructure/ProductsRepository";
+import productsCachedRepository from "../infrastructure/ProductsCachedRepository";
 
 export type GetProductsQuery = z.infer<typeof GetProductsQuerySchema >;
 export const GetProductsQuerySchema = z.object({
@@ -41,8 +42,8 @@ export const GetProductsEndpoint = defaultEndpointsFactory.build({
             return { statistic: null, items: products as any };
         }
         
-        const products =await productsRepository.getAll(input);
-        const statistic = await productsRepository.getProductsStatistic(input);
+        const products =await productsCachedRepository.getAll(input);
+        const statistic = await productsCachedRepository.getStatistic(input);
 
         // the products variable is converted to type any to avoid a type mismatch error. 
         // The ProductSchema and VariationSchema ZOD schemas for the created and modified fields use a ZOD type dateOut(), which is converted to a string type in the output type, but the input type is still to require value of a Date type before conversion.
