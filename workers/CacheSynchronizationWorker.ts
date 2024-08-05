@@ -15,14 +15,15 @@ interface ChangeLogItem {
 class CacheSynchronizationWorker {
     private _lastAppliedChange: number = 0;
 
-    public start(): void {
-        this.loadProducts();
-
+    public async start(): Promise<void>{
+        await this.importProducts();
+        await this.loadProducts();
         this.startPeriodicHandler();
     }
 
     private async loadProducts(): Promise<void> {
         console.debug("Start loading cached products.");
+
         const collection = docStorage.collection<Product>("products");
 
         const products = await collection.find({ }).toArray();
@@ -32,6 +33,8 @@ class CacheSynchronizationWorker {
     }
 
     private async importProducts(): Promise<void> {
+        console.debug("Start importing products from main database to cache database.");
+
         const collection = docStorage.collection<Product>("products");
         const productsCount = (await productsRepository.getProductsStatistic({ })).products_count;
         
@@ -46,7 +49,13 @@ class CacheSynchronizationWorker {
             console.debug(notExistedProducts.length, "products  from page", i);
 
             if (notExistedProducts.length > 0) {
-                await collection.insertMany(notExistedProducts);
+                const productsMap: Map<number, Product> = new Map();
+                notExistedProducts.forEach(p => {
+                    if (!productsMap.has(p.id))
+                        productsMap.set(p.id, p);
+                });
+
+                await collection.insertMany([...productsMap.values()]);
             }
         }
 

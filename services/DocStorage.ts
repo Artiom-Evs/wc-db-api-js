@@ -14,6 +14,10 @@ mongoClient.connect()
 process.on("exit", () => {
     mongoClient.close().catch(console.error);
 });
-
 const docStorage = mongoClient.db("ewagifts");
+
+docStorage.collection("products")
+    .createIndex({ id: 1 }, { unique: true })
+    .catch(err => console.error(`Error while creating unique index for the "products" MongoDB collection.`, err));
+
 export default docStorage;
