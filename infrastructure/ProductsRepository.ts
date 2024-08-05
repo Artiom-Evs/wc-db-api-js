@@ -6,78 +6,9 @@ import attributesRepository, { DBProductAttributeTerm, DBVariationAttribute } fr
 import categoriesRepository from "./CategoriesRepository";
 import imagesRepository, { DBImage } from "./ImagesRepository";
 
-const createGetAllProductsQuery = (orderBy:string, direction: string) => {
-    let orderByFieldName = "CAST(m2.meta_value AS INT)";
-
-    orderBy = orderBy.toLowerCase();
-    direction = direction.toLowerCase();
-
-    if (orderBy === "price")
-        orderByFieldName = "CAST(m1.meta_value AS DECIMAL(10, 2))";
-    else if (orderBy === "date")
-        orderByFieldName = "post_date";
-    else if (orderBy === "name")
-        orderByFieldName = "post_title";
-
-    return `
-    WITH Products as
-(
-    SELECT  ID AS id
-    FROM wp_posts
-    LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
-    LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
-    WHERE post_type = "product" AND post_status = "publish"
-        AND (? = -1 OR CAST(m1.meta_value AS DECIMAL(10, 2)) >= ?)
-        AND (? = -1 OR CAST(m1.meta_value AS DECIMAL(10, 2)) <= ?)
-        AND (? = "" OR MATCH(post_title) AGAINST(CONCAT("*", ?, "*")))
-        
-        AND (? = "" OR ID IN
-            (SELECT object_id FROM wp_term_relationships
-            WHERE term_taxonomy_id IN
-                (SELECT term_taxonomy_id FROM wp_term_taxonomy
-                WHERE taxonomy = "product_cat" AND term_taxonomy_id IN
-                    (SELECT term_id FROM wp_terms
-                    WHERE slug = ?))))
-
-        AND (? = "" OR ID IN
-            (SELECT product_or_parent_id FROM wp_wc_product_attributes_lookup
-            WHERE taxonomy = ? AND (? = "" OR term_id IN
-                (SELECT term_id FROM wp_terms
-                WHERE ? = "" OR slug LIKE CONCAT("%", ?, "%")))))
-            
-    ORDER BY ${orderByFieldName} ${direction === "asc" ? "ASC" : "DESC"}
-    LIMIT ? OFFSET ?
-)
-SELECT 
-    ID AS id, 
-    post_parent as parent_id,
-    post_title AS name, 
-    post_name AS slug, 
-    post_content AS description, 
-    post_date AS created, 
-    post_modified AS modified, 
-    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
-    CAST(m2.meta_value AS INT) AS stock_quantity,
-    m3.meta_value AS sku,
-    m4.meta_value AS attributes,
-    m5.meta_value AS default_attributes,
-    m6.meta_value AS price_circulations,
-    m7.meta_value AS variation_image_gallery
-FROM wp_posts
-LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
-LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
-LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
-LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_product_attributes"
-LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "_default_attributes"
-LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key = "_price_circulations"
-LEFT JOIN wp_postmeta AS m7 ON wp_posts.ID = m7.post_id AND m7.meta_key = "variation_image_gallery"
-WHERE (post_type = "product_variation" OR post_type = "product") AND post_status = "publish"
-    AND (ID IN (select id from Products)
-        OR post_parent IN (select id from Products))
-ORDER BY ${orderByFieldName} ${direction === "asc" ? "ASC" : "DESC"}
-
+const GET_ALL_QUERY = `
+CALL GetProductsV3(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 `;
-}
 
 const GET_STATISTIC_QUERY = `
 CALL GetProductsStatisticV2(?, ?, ?, ?, ?, ?);
@@ -99,7 +30,7 @@ SELECT
     post_content AS description, 
     post_date AS created, 
     post_modified AS modified, 
-    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
+    CAST(m1.meta_value AS DECIMAL(10, 4)) AS price,
     CAST(m2.meta_value AS INT) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS attributes,
@@ -126,7 +57,7 @@ SELECT
     post_content AS description, 
     post_date AS created, 
     post_modified AS modified, 
-    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
+    CAST(m1.meta_value AS DECIMAL(10, 4)) AS price,
     CAST(m2.meta_value AS INT) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS attributes,
@@ -153,7 +84,7 @@ SELECT
     post_name AS slug, 
     post_date AS created, 
     post_modified AS modified,
-    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
+    CAST(m1.meta_value AS DECIMAL(10, 4)) AS price,
     CAST(m2.meta_value AS INT) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS variation_image_gallery,
@@ -171,7 +102,7 @@ WHERE post_parent IN (${ids.map(() => "?").join(", ")})
     AND post_status = "publish";
 `;
 
-export interface GetProductsOptions {
+interface GetProductsOptions {
     page?: number,
     per_page?: number,
     order_by?: "date" | "price" | "quantity" | "name",
@@ -234,20 +165,22 @@ class ProductsRepository extends RepositoryBase {
         if (attribute != "" && !attribute.startsWith("pa_"))
             attribute = "pa_" + attribute;
 
-        const query = createGetAllProductsQuery(order_by, order);
-        const [rows] = await this._pool.execute<any[]>(query, [
-            min_price, min_price,
-            max_price, max_price,
-            search, search, 
-            category, category,
-            attribute, attribute,
-            attribute_term, attribute_term, attribute_term,
-            per_page, per_page * (page - 1)
+        const [[rows]] = await this._pool.execute<[any[]]>(GET_ALL_QUERY, [
+            per_page,
+            per_page * (page - 1),
+            min_price,
+            max_price,
+            order_by,
+            order,
+            category,
+            attribute,
+            attribute_term,
+            search
         ]);
 
-        const products = rows.filter(r => r.parent_id === 0) as Product[];
+        const products = rows as Product[];
         const productIds = products.map(p => p.id);
-        const variations = rows.filter(r => r.parent_id !== 0) as Variation[];
+        const variations = await this.getProductsVariations(productIds);
         const variationIds = variations.map(v => v.id);
         const images = await imagesRepository.getProductsImages([...productIds, ...variationIds]);
         const variationsImages = await this.getVariationsImages(variations);
@@ -271,14 +204,11 @@ class ProductsRepository extends RepositoryBase {
 
             if (product.price_circulations)
                 product.price_circulations = unserialize((product as any).price_circulations);
-
+            
             product.variations.forEach(variation => {
                 variation.price = variation.price != null ? parseFloat(variation.price as any) : null;
                 variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
                 variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
-
-                if (variation.price_circulations && typeof(variation.price_circulations) === "string") 
-                    variation.price_circulations = unserialize((variation as any).price_circulations);
 
                 this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
             });
@@ -530,7 +460,7 @@ const variations = await this.getProductsVariations([product.id]);
             const aTerm = pAttribute?.options.find(t => t.slug === termSlug);
             if (!aTerm)
                 throw new Error(`"${termSlug}" default attribute does not found in options of the "${attrSlug}" attribute of the the product with ID ${product.id}.in the the de`);
-                
+
             product.default_attributes.push({
                 id: aTerm.id,
                 name: aTerm.name,
