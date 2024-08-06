@@ -102,7 +102,8 @@ export const ProductSchema = z.object({
 export const ProductsStatisticSchema = z.object({
     products_count: z.number(),
     min_price: z.number(),
-    max_price: z.number()
+    max_price: z.number(),
+    attributes: z.array(ProductAttributeSchema).optional()
 });
 
 export const PageInfoSchema = z.object({
