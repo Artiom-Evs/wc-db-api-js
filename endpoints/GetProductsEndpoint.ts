@@ -13,7 +13,7 @@ export const GetProductsQuerySchema = z.object({
     min_price: z.string().transform((s) => parseInt(s)).optional(),
     max_price: z.string().transform((s) => parseInt(s)).optional(),
     category: z.string().optional().transform(s => s?.toLowerCase() ?? s),
-    attribute: z.string().optional().transform(s => s?.toLowerCase() ?? s),
+    attribute: z.string().optional().transform(normalizeAttributeName),
     attribute_term: z.string().optional().transform(s => s?.toLowerCase() ?? s),
     search: z.string().optional().transform(s => s?.toLowerCase() ?? s),
     include: z.string().optional().transform(v => v?.split(",").map(s => parseInt(s)).filter(n => n)),
@@ -50,3 +50,15 @@ export const GetProductsEndpoint = defaultEndpointsFactory.build({
         return { statistic, items: products as any };
     },
 });
+
+function normalizeAttributeName(name: string | undefined): string | undefined {
+    if (!name)
+        return name;
+
+    name = name.toLowerCase();
+
+    if (name.startsWith("pa_"))
+        return name.substring(3);
+    else 
+    return name;
+}
