@@ -4,7 +4,7 @@ import RepositoryBase from "./RepositoryBase";
 import { unserialize } from "php-serialize";
 import attributesRepository, { DBProductAttributeTerm, DBVariationAttribute } from "./AttributesRepository";
 import categoriesRepository from "./CategoriesRepository";
-import imagesRepository, { DBImage } from "./ImagesRepository";
+import imagesRepository, { DBImage, ImageSizes } from "./ImagesRepository";
 
 const GET_ALL_QUERY = `
 CALL GetProductsV3(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
@@ -182,8 +182,8 @@ class ProductsRepository extends RepositoryBase {
         const productIds = products.map(p => p.id);
         const variations = await this.getProductsVariations(productIds);
         const variationIds = variations.map(v => v.id);
-        const images = await imagesRepository.getProductsImages([...productIds, ...variationIds]);
-        const variationsImages = await this.getVariationsImages(variations);
+        const images = await imagesRepository.getProductsImages([...productIds, ...variationIds], "medium");
+        const variationsImages = await this.getVariationsImages(variations, "medium");
 
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
         const attributesTerms = await attributesRepository.getProductsAttributeTerms(productIds);
@@ -227,8 +227,8 @@ class ProductsRepository extends RepositoryBase {
         const products = rows as Product[];
         const variations = await this.getProductsVariations(ids);
         const variationIds = variations.map(v => v.id);
-        const images = await imagesRepository.getProductsImages([...ids, ...variationIds]);
-        const variationsImages = await this.getVariationsImages(variations);
+        const images = await imagesRepository.getProductsImages([...ids, ...variationIds], "medium");
+        const variationsImages = await this.getVariationsImages(variations, "medium");
 
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
         const attributesTerms = await attributesRepository.getProductsAttributeTerms(ids);
@@ -273,8 +273,8 @@ class ProductsRepository extends RepositoryBase {
         const productIds = products.map(p => p.id);
         const variations = await this.getProductsVariations(productIds);
         const variationIds = variations.map(v => v.id);
-        const images = await imagesRepository.getProductsImages([...productIds, ...variationIds]);
-        const variationsImages = await this.getVariationsImages(variations);
+        const images = await imagesRepository.getProductsImages([...productIds, ...variationIds], "medium");
+        const variationsImages = await this.getVariationsImages(variations, "medium");
 
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
         const attributesTerms = await attributesRepository.getProductsAttributeTerms(productIds);
@@ -318,8 +318,8 @@ class ProductsRepository extends RepositoryBase {
 
         const variations = await this.getProductsVariations([id]);
         const variationIds = variations.map(v => v.id);
-        const images = await imagesRepository.getProductsImages([id, ...variationIds]);
-        const variationsImages = await this.getVariationsImages(variations);
+        const images = await imagesRepository.getProductsImages([id, ...variationIds], "large");
+        const variationsImages = await this.getVariationsImages(variations, "large");
         const categories = await categoriesRepository.getProductsCategories([id]);
 
         product.type = variations.length === 0 ? "simple" : "variable";
@@ -361,8 +361,8 @@ class ProductsRepository extends RepositoryBase {
 
 const variations = await this.getProductsVariations([product.id]);
         const variationIds = variations.map(v => v.id);
-        const images = await imagesRepository.getProductsImages([product.id, ...variationIds]);
-        const variationsImages = await this.getVariationsImages(variations);
+        const images = await imagesRepository.getProductsImages([product.id, ...variationIds], "large");
+        const variationsImages = await this.getVariationsImages(variations, "large");
         const categories = await categoriesRepository.getProductsCategories([product.id]);
 
         product.type = variations.length === 0 ? "simple" : "variable";
@@ -485,7 +485,7 @@ const variations = await this.getProductsVariations([product.id]);
             })
     }
 
-    private async getVariationsImages(variations: Variation[]): Promise<DBImage[]> {
+    private async getVariationsImages(variations: Variation[], targetSize: ImageSizes): Promise<DBImage[]> {
         if (variations.length === 0)
             return [];
 
@@ -505,7 +505,7 @@ const variations = await this.getProductsVariations([product.id]);
         if (imageIds.length === 0)
             return [];
 
-        const images = imagesRepository.getImagesByIds(imageIds);
+        const images = imagesRepository.getImagesByIds(imageIds, targetSize);
         return images;
     }
 }
