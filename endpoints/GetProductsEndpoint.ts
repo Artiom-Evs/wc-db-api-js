@@ -12,10 +12,10 @@ export const GetProductsQuerySchema = z.object({
     order: z.enum([ "desc", "asc" ]).optional(),
     min_price: z.string().transform((s) => parseInt(s)).optional(),
     max_price: z.string().transform((s) => parseInt(s)).optional(),
-    category: z.string().optional(),
-    attribute: z.string().optional(),
-    attribute_term: z.string().optional(),
-    search: z.string().optional(),
+    category: z.string().optional().transform(s => s?.toLowerCase() ?? s),
+    attribute: z.string().optional().transform(s => s?.toLowerCase() ?? s),
+    attribute_term: z.string().optional().transform(s => s?.toLowerCase() ?? s),
+    search: z.string().optional().transform(s => s?.toLowerCase() ?? s),
     include: z.string().optional().transform(v => v?.split(",").map(s => parseInt(s)).filter(n => n)),
     slugs: z.string().optional().transform(v => v?.split(",").map(s => s.trim().toLowerCase()).filter(n => n))
 });
