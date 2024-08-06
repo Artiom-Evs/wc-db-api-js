@@ -1,5 +1,5 @@
 import pool from "./DbConnectionPool";
-import { Product, ProductsStatistic } from "schemas";
+import { Attribute, AttributeTerm, Product, ProductAttribute, ProductsStatistic } from "schemas";
 import RepositoryBase from "./RepositoryBase";
 import { GetProductsOptions } from "./ProductsRepository";
 import productsCache, { ProductCacheItem } from "../services/ProductsCache";
@@ -48,12 +48,41 @@ class ProductsCachedRepository extends RepositoryBase {
             .filter(p => search === "" || p.product.sku.indexOf(search) > -1 || p.product.name.indexOf(search) > -1);
             
         const [min, max] = this.getMinAndMaxPrice(products);
+        const attributes = this.getAttributesStatistic(products);
         
         return {
             products_count: products.length,
             min_price: min,
-            max_price: max
+            max_price: max,
+            attributes
         };
+    }
+
+    private getAttributesStatistic(products: ProductCacheItem[]): ProductAttribute[] {
+        const attributes: ProductAttribute[] = [];
+        const termsMap: Map<number, Map<string, AttributeTerm>> = new Map();
+
+        products.forEach(prod => {
+            prod.product.attributes.forEach(attr => {
+                if (!termsMap.has(attr.id)) {
+                    attributes.push(attr);
+                    termsMap.set(attr.id, new Map());
+                }
+
+                const attrTermsMap = termsMap.get(attr.id);
+                attr.options.forEach(term => {
+                    if (attrTermsMap  && !attrTermsMap.has(term.slug))
+                        attrTermsMap.set(term.slug, term);
+                });
+            });
+        });
+
+        attributes.forEach(attr => {
+            const terms = termsMap.get(attr.id)?.values() ?? [];
+            attr.options = [...terms];
+        });
+        
+        return attributes;
     }
 
     private getSorter(orderBy: string, direction: "asc" | "desc"): (a: ProductCacheItem, b: ProductCacheItem) => number {
