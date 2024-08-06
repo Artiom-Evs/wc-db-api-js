@@ -46,7 +46,7 @@ class ProductsCachedRepository extends RepositoryBase {
             .filter(p => max_price === -1 || (p.product.price && p.product.price < max_price))
             .filter(this.filterByAttribute(attribute, attribute_term))
             .filter(p => search === "" || p.product.sku.indexOf(search) > -1 || p.product.name.indexOf(search) > -1);
-            
+        
         const [min, max] = this.getMinAndMaxPrice(products);
         const attributes = this.getAttributesStatistic(products);
         
@@ -110,6 +110,9 @@ class ProductsCachedRepository extends RepositoryBase {
         let min = 1000000000;
         let max = 0;
 
+        if (products.length === 0)
+            return [0, 0];
+        
         products.forEach(product => {
             product.product.variations.forEach(variation => {
                 if (variation.price && variation.price < min)
