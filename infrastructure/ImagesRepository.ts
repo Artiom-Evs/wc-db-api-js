@@ -5,12 +5,14 @@ import RepositoryBase from "./RepositoryBase";
 
 const createGetImagesByIdsQuery = (ids: number[]) => `
 SELECT 
-    ID AS id, 
-    post_parent AS parent_id, 
-    post_title AS name, 
-    guid AS src
-FROM wp_posts
-WHERE ID IN (${ids.map(() => "?").join(", ")}) AND post_mime_type LIKE "image/%";
+    p.ID AS id, 
+    p.post_parent AS parent_id, 
+    p.post_title AS name, 
+    p.guid AS src,
+    pm.meta_value AS meta
+FROM wp_posts AS p
+INNER JOIN wp_postmeta AS pm ON p.ID = pm.post_id AND pm.meta_key = "_wp_attachment_metadata"
+WHERE p.ID IN (${ids.map(() => "?").join(", ")}) AND p.post_mime_type LIKE "image/%";
 `;
 
 const createGetProductsImagesQuery = (ids: number[]) => `
@@ -33,8 +35,10 @@ export interface DBImage {
     meta: string
 }
 
+export type ImageSizes = "medium" | "large" | "original";
+
 class ImagesRepository extends RepositoryBase {
-    public async getProductsImages(productIds: number[]): Promise<DBImage[]> {
+    public async getProductsImages(productIds: number[], targetSize: ImageSizes): Promise<DBImage[]> {
         if (productIds.length === 0)
             return [];
 
@@ -42,29 +46,37 @@ class ImagesRepository extends RepositoryBase {
         const [variationRows] = await this._pool.execute(query, productIds);
         const dbImages = variationRows as DBImage[];
 
-        dbImages.forEach(i => this.changeImageSize(i));
-            
+        dbImages.forEach(i => this.changeImageSize(i, targetSize));
+        
         return dbImages;
     }
 
-    public async getImagesByIds(imageIds: number[]): Promise<DBImage[]> {
+    public async getImagesByIds(imageIds: number[], targetSize: ImageSizes): Promise<DBImage[]> {
         if (imageIds.length === 0)
             return [];
 
         const query = createGetImagesByIdsQuery(imageIds);
         const [variationRows] = await this._pool.execute(query, imageIds);
+        const dbImages = variationRows as DBImage[];
+
+        dbImages.forEach(i => this.changeImageSize(i, targetSize));
+        
+        dbImages.forEach(i => this.changeImageSize(i, "medium"));
 
         return variationRows as DBImage[];
     }    
 
-    private changeImageSize(dbImage: DBImage): void {
+    private changeImageSize(dbImage: DBImage, targetSize: ImageSizes): void {
+        if (targetSize === "original")
+            return;
+        
         const meta = unserialize(dbImage.meta);
-        const targetSize = meta?.sizes?.medium;
+        const sizeInfo = meta?.sizes?.[targetSize];
 
-        if (!targetSize) return;
+        if (!sizeInfo) return;
         
         const lastPathSeparator = dbImage.src.lastIndexOf("/");
-        dbImage.src = dbImage.src.substring(0, lastPathSeparator + 1) + targetSize.file;
+        dbImage.src = dbImage.src.substring(0, lastPathSeparator + 1) + sizeInfo.file;
     }
 }
 
