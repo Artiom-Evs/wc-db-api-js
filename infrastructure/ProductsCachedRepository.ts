@@ -40,18 +40,23 @@ class ProductsCachedRepository extends RepositoryBase {
         search = ""
     }): Promise<ProductsStatistic> 
     {
-        const products = (await productsCache.GetProducts())
-        .filter(p => category === "" || p.product.categories.some(c => c.slug === category))
+        const generalFilter = (products: ProductCacheItem[]) => products
+            .filter(p => category === "" || p.product.categories.some(c => c.slug === category))
+            .filter(p => search === "" || p.product.sku.toLowerCase().indexOf(search) > -1 || p.product.name.toLowerCase().indexOf(search) > -1 || p.product.variations.some(v => v.sku.toLowerCase().indexOf(search) > -1 || v.name.toLowerCase().indexOf(search) > -1));
+        const attributeFilter = (products: ProductCacheItem[]) => products
+            .filter(this.filterByAttribute(attribute, attribute_term));
+        const priceFilter = (products: ProductCacheItem[]) => products
             .filter(p => min_price === -1 || (p.product.price && p.product.price >= min_price))
             .filter(p => max_price === -1 || (p.product.price && p.product.price < max_price))
-            .filter(this.filterByAttribute(attribute, attribute_term))
-            .filter(p => search === "" || p.product.sku.toLowerCase().indexOf(search) > -1 || p.product.name.toLowerCase().indexOf(search) > -1 || p.product.variations.some(v => v.sku.toLowerCase().indexOf(search) > -1 || v.name.toLowerCase().indexOf(search) > -1))
         
-        const [min, max] = this.getMinAndMaxPrice(products);
-        const attributes = this.getAttributesStatistic(products);
+        
+        const products = generalFilter((await productsCache.GetProducts()));
+        const products_count = attributeFilter(priceFilter(products)).length;
+        const [min, max] = this.getMinAndMaxPrice(attributeFilter(products));
+        const attributes = this.getAttributesStatistic(priceFilter(products));
         
         return {
-            products_count: products.length,
+            products_count,
             min_price: min,
             max_price: max,
             attributes
