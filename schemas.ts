@@ -15,6 +15,7 @@ export type PageInfo = z.infer<typeof PageInfoSchema>;
 export type MenuItem = z.infer<typeof MenuItemSchema>;
 export type Menu = z.infer<typeof MenuSchema>;
 export type Post = z.infer<typeof PostSchema>;
+export type OrderItemPriceCirculation = z.infer<typeof OrderItemPriceCirculationSchema>;
 
 export const ImageSchema = z.object({
     id: z.number(),
@@ -144,4 +145,10 @@ export const PostSchema = z.object({
     excerpt: z.string(),
     menu_order: z.number(),
     categories: z.array(CategorySchema)
+});
+
+export const OrderItemPriceCirculationSchema = z.object({
+    product_id: z.number(),
+    variation_id: z.number(),
+    price_circulations: PriceCirculationsSchema
 });
