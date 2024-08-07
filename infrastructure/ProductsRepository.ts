@@ -1,4 +1,4 @@
-import { Attribute, VariationAttribute, Category, Image, Product, Variation } from "../schemas";
+import { Attribute, VariationAttribute, Category, Image, Product, Variation, ProductPriceCirculation, PriceCirculations } from "../schemas";
 import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
 import { unserialize } from "php-serialize";
@@ -102,6 +102,12 @@ WHERE post_parent IN (${ids.map(() => "?").join(", ")})
     AND post_status = "publish";
 `;
 
+const createGetProductsOrVariationsPriceCirculationsQuery = (productOrVariationIds: number[]) => `
+SELECT pm.post_id AS product_or_variation_id, pm.meta_value AS price_circulations
+FROM wp_postmeta AS pm
+WHERE pm.meta_key = "_price_circulations" AND pm.post_id IN (${productOrVariationIds.map(() => "?").join(", ")});
+`;
+
 export interface GetProductsOptions {
     page?: number,
     per_page?: number,
@@ -119,6 +125,11 @@ export interface ProductsStatistic {
     products_count: number,
     min_price: number,
     max_price: number
+}
+
+interface DbProductOrVariationPriceCirculation {
+    product_or_variation_id: number,
+    price_circulations: PriceCirculations
 }
 
 class ProductsRepository extends RepositoryBase {
@@ -408,6 +419,18 @@ const variations = await this.getProductsVariations([product.id]);
         });
 
         return variations;
+    }
+
+    public async getCirculations(productOrVariationIds: number[]): Promise<DbProductOrVariationPriceCirculation[]> {
+        const query = createGetProductsOrVariationsPriceCirculationsQuery(productOrVariationIds);
+        const [rows] = await this._pool.execute<any[]>(query, productOrVariationIds);
+
+        rows.forEach(row => {
+            if (row.price_circulations)
+                row.price_circulations = unserialize(row.price_circulations);
+        });
+
+        return rows as DbProductOrVariationPriceCirculation[];
     }
 
     private initProductAttributes(product: Product, globalAttributes: Attribute[], attributesTerms: DBProductAttributeTerm[]): void {
