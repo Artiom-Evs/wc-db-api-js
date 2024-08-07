@@ -23,7 +23,7 @@ class ProductsCachedRepository extends RepositoryBase {
             .filter(p => min_price === -1 || (p.product.price && p.product.price >= min_price))
             .filter(p => max_price === -1 || (p.product.price && p.product.price < max_price))
             .filter(this.filterByAttribute(attribute, attribute_term))
-            .filter(p => search === "" || p.product.sku.indexOf(search) > -1 || p.product.name.indexOf(search) > -1 || p.product.variations.some(v => v.sku.indexOf(search) > -1 || v.name.indexOf(search) > -1))
+            .filter(p => search === "" || p.product.sku.toLowerCase().indexOf(search) > -1 || p.product.name.toLowerCase().indexOf(search) > -1 || p.product.variations.some(v => v.sku.toLowerCase().indexOf(search) > -1 || v.name.toLowerCase().indexOf(search) > -1))
             .sort(this.getSorter(order_by, order))
             .slice(per_page * (page - 1), per_page * page)
             .map(item => item.product);
@@ -45,7 +45,7 @@ class ProductsCachedRepository extends RepositoryBase {
             .filter(p => min_price === -1 || (p.product.price && p.product.price >= min_price))
             .filter(p => max_price === -1 || (p.product.price && p.product.price < max_price))
             .filter(this.filterByAttribute(attribute, attribute_term))
-            .filter(p => search === "" || p.product.sku.indexOf(search) > -1 || p.product.name.indexOf(search) > -1 || p.product.variations.some(v => v.sku.indexOf(search) > -1 || v.name.indexOf(search) > -1))
+            .filter(p => search === "" || p.product.sku.toLowerCase().indexOf(search) > -1 || p.product.name.toLowerCase().indexOf(search) > -1 || p.product.variations.some(v => v.sku.toLowerCase().indexOf(search) > -1 || v.name.toLowerCase().indexOf(search) > -1))
         
         const [min, max] = this.getMinAndMaxPrice(products);
         const attributes = this.getAttributesStatistic(products);
