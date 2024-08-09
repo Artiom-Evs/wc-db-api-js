@@ -103,8 +103,12 @@ WHERE post_parent IN (${ids.map(() => "?").join(", ")})
 `;
 
 const createGetProductsOrVariationsPriceCirculationsQuery = (productOrVariationIds: number[]) => `
-SELECT pm.post_id AS product_or_variation_id, pm.meta_value AS price_circulations
+SELECT 
+    pm.post_id AS product_or_variation_id,
+    CAST(pa_stock.meta_value AS INT) AS stock_quantity,
+    pm.meta_value AS price_circulations
 FROM wp_postmeta AS pm
+LEFT JOIN wp_postmeta AS pa_stock ON pm.post_id = pa_stock.post_id AND pa_stock.meta_key = "_stock"
 WHERE pm.meta_key = "_price_circulations" AND pm.post_id IN (${productOrVariationIds.map(() => "?").join(", ")});
 `;
 
@@ -129,6 +133,7 @@ export interface ProductsStatistic {
 
 interface DbProductOrVariationPriceCirculation {
     product_or_variation_id: number,
+    stock_quantity: number,
     price_circulations: PriceCirculations
 }
 

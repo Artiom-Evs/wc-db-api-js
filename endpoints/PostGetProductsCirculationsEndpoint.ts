@@ -21,14 +21,15 @@ export const PostGetProductsCirculationsEndpoint = defaultEndpointsFactory.build
         });
         const circulations = await productsRepository.getCirculations(productOrVariationIds);
         const items: ProductPriceCirculation[] = input.products.map(p => {
-            const price_circulations = p.variation_id && p.variation_id != 0
-                ? circulations.find(c => c.product_or_variation_id === p.variation_id)?.price_circulations ?? null
-                : circulations.find(c => c.product_or_variation_id === p.product_id)?.price_circulations ?? null;
+            const dbCirculations = p.variation_id && p.variation_id != 0
+                ? circulations.find(c => c.product_or_variation_id === p.variation_id)
+                : circulations.find(c => c.product_or_variation_id === p.product_id);
 
             return {
                 product_id: p.product_id, 
                 variation_id: p.variation_id,
-                price_circulations
+                stock_quantity: dbCirculations?.stock_quantity ?? null,
+                price_circulations: dbCirculations?.price_circulations ?? null
             };
         });
         
