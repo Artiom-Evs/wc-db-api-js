@@ -9,7 +9,7 @@ export const PostGetProductsCirculationsEndpoint = defaultEndpointsFactory.build
     input: z.object({
         products: z.array(z.object({
             product_id: z.number(),
-            variation_id: z.number()
+            variation_id: z.number().optional()
         }))
     }),
     output: z.object({
