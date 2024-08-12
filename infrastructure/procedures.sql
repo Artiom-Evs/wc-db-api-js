@@ -94,7 +94,7 @@ BEGIN
             post_content AS description, 
             post_date AS created, 
             post_modified AS modified, 
-            CAST(m1.meta_value AS DECIMAL(10, 4)) AS price,
+            CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
             CAST(m2.meta_value AS INT) AS stock_quantity,
             m3.meta_value AS sku,
             m4.meta_value AS attributes,
@@ -148,7 +148,7 @@ BEGIN
             post_content AS description, 
             post_date AS created, 
             post_modified AS modified, 
-            CAST(m1.meta_value AS DECIMAL(10, 4)) AS price,
+            CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
             CAST(m2.meta_value AS INT) AS stock_quantity,
             m3.meta_value AS sku,
             m4.meta_value AS attributes,
@@ -199,8 +199,8 @@ END $$
 
 CREATE PROCEDURE GetProductsStatisticV2
 (
-    minPrice DECIMAL(10, 4),
-    maxPrice DECIMAL(10, 4),
+    minPrice DECIMAL(10, 2),
+    maxPrice DECIMAL(10, 2),
     categoryName VARCHAR(100),
     attributeName VARCHAR(100),
     termName VARCHAR(100),
@@ -216,8 +216,8 @@ BEGIN
     LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_sku"
     WHERE post_type = "product" 
         AND post_status = "publish"
-        AND (minPrice = -1 OR CAST(m1.meta_value AS DECIMAL(10, 4)) >= minPrice)
-        AND (maxPrice = -1 OR CAST(m1.meta_value AS DECIMAL(10, 4)) <= maxPrice)
+        AND (minPrice = -1 OR CAST(m1.meta_value AS DECIMAL(10, 2)) >= minPrice)
+        AND (maxPrice = -1 OR CAST(m1.meta_value AS DECIMAL(10, 2)) <= maxPrice)
         AND (searchText = "" OR MATCH(post_title) AGAINST(CONCAT("*", searchText, "*")))
         AND (categoryName = "" OR ID IN
             (SELECT object_id
