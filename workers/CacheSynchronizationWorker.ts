@@ -111,7 +111,7 @@ class CacheSynchronizationWorker {
                 item.stock_quantity = parseInt(change.meta_value) ?? 0;
                 break;
             case "_price":
-                item.price = parseFloat(change.meta_value)?.toFixed(2) ?? 0;
+                item.price = Math.round((parseFloat(change.meta_value) ?? 0) * 100) / 100;
                 break;
             case "_price_circulations":
                 item.price_circulations = unserialize(change.meta_value);
