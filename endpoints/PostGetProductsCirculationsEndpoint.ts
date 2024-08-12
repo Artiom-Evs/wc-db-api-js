@@ -29,6 +29,7 @@ export const PostGetProductsCirculationsEndpoint = defaultEndpointsFactory.build
                 product_id: p.product_id, 
                 variation_id: p.variation_id,
                 stock_quantity: dbCirculations?.stock_quantity ?? null,
+                price: dbCirculations?.price ?? null,
                 price_circulations: dbCirculations?.price_circulations ?? null
             };
         });
