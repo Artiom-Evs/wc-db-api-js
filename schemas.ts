@@ -143,6 +143,9 @@ export const PostSchema = z.object({
     title: z.string(),
     content: z.string(),
     excerpt: z.string(),
+    created: z.union([ ez.dateOut(), z.string().datetime() ]),
+    modified: z.union([ ez.dateOut(), z.string().datetime() ]),
+    thumbnail: z.string().nullable(),
     menu_order: z.number(),
     categories: z.array(CategorySchema)
 });
