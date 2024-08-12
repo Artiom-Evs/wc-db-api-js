@@ -11,10 +11,10 @@ export interface GetCachedProductsOptions {
     min_price?: number,
     max_price?: number,
     category?: string,
-    pa_supplier?: string,
-    pa_color?: string,
-    pa_base_color?: string,
-    pa_size?: string,
+    pa_supplier?: string[],
+    pa_color?: string[],
+    pa_base_color?: string[],
+    pa_size?: string[],
     search?: string
 }
 
@@ -148,12 +148,17 @@ class ProductsCachedRepository extends RepositoryBase {
         return [min, max];
     }
 
-    private filterByAttribute(pa_supplier: string | undefined, pa_color: string | undefined, pa_base_color: string | undefined, pa_size: string | undefined): (p: ProductCacheItem) => boolean {
+    private filterByAttribute(pa_supplier: string[] | undefined, pa_color: string[] | undefined, pa_base_color: string[] | undefined, pa_size: string[] | undefined): (p: ProductCacheItem) => boolean {
+        const multipleInclude = (slug: string, options: string[] | undefined) =>
+            !options || options.some(o => slug.indexOf(o) > -1);
+
         return (p) =>
-        (!pa_supplier || p.product.attributes.some(a => a.slug === "supplier" && a.options.some(o => o.slug.indexOf(pa_supplier) > -1)))
-        && (!pa_color || p.product.attributes.some(a => a.slug === "color" && a.options.some(o => o.slug.indexOf(pa_color) > -1)))
-        && (!pa_base_color || p.product.attributes.some(a => a.slug === "base_color" && a.options.some(o => o.slug.indexOf(pa_base_color) > -1)))
-        && (!pa_size || p.product.attributes.some(a => a.slug === "size" && a.options.some(o => o.slug.indexOf(pa_size) > -1)));
+        (!pa_supplier || p.product.attributes.some(a => a.slug === "supplier" && (pa_supplier.length === 0 || a.options.some(o => multipleInclude(o.slug, pa_supplier)))))
+        && (!pa_color || p.product.attributes.some(a => a.slug === "color" && (pa_color.length === 0 || a.options.some(o => multipleInclude(o.slug, pa_color)))))
+        && (!pa_base_color || p.product.attributes.some(a => a.slug === "base_color" && (pa_base_color.length === 0 || a.options.some(o => multipleInclude(o.slug, pa_base_color))))
+        && (!pa_size || p.product.attributes.some(a => a.slug === "size" && (pa_size.length === 0 || a.options.some(o => multipleInclude(o.slug, pa_size))))));
+
+        
     }
 }
 
