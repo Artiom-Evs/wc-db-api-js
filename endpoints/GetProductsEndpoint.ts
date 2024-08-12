@@ -13,11 +13,11 @@ export const GetProductsQuerySchema = z.object({
     min_price: z.string().transform((s) => parseFloat(s)).optional(),
     max_price: z.string().transform((s) => parseFloat(s)).optional(),
     category: z.string().optional().transform(s => s?.toLowerCase() ?? s),
-    pa_supplier: z.string().optional(),
-    pa_color: z.string().optional(),
-    pa_base_color: z.string().optional(),
-    pa_size: z.string().optional(),
-    search: z.string().optional().transform(s => s?.toLowerCase() ?? s),
+    pa_supplier: z.string().optional().transform<string[] | undefined>(s => !s? undefined : s.split(",").map(s => s.trim().toLowerCase())),
+    pa_color: z.string().optional().transform<string[] | undefined>(s => !s ? undefined : s.split(",").map(s => s.trim().toLowerCase())),
+    pa_base_color: z.string().optional().transform<string[] | undefined>(s => !s ? undefined : s.split(",").map(s => s.trim().toLowerCase())),
+    pa_size: z.string().optional().transform(s => !s ? undefined : s.split(",").map(s => s.trim().toLowerCase())),
+    search: z.string().optional().transform(s => !s ? undefined : s.toLowerCase()),
     include: z.string().optional().transform(v => v?.split(",").map(s => parseInt(s)).filter(n => n)),
     slugs: z.string().optional().transform(v => v?.split(",").map(s => s.trim().toLowerCase()).filter(n => n))
 });
