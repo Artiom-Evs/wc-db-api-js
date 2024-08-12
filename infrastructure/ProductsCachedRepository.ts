@@ -1,8 +1,22 @@
 import pool from "./DbConnectionPool";
 import { Attribute, AttributeTerm, Product, ProductAttribute, ProductsStatistic } from "schemas";
 import RepositoryBase from "./RepositoryBase";
-import { GetProductsOptions } from "./ProductsRepository";
 import productsCache, { ProductCacheItem } from "../services/ProductsCache";
+
+export interface GetCachedProductsOptions {
+    page?: number,
+    per_page?: number,
+    order_by?: "date" | "price" | "quantity" | "name",
+    order?: "asc" | "desc",
+    min_price?: number,
+    max_price?: number,
+    category?: string,
+    pa_supplier?: string,
+    pa_color?: string,
+    pa_base_color?: string,
+    pa_size?: string,
+    search?: string
+}
 
 class ProductsCachedRepository extends RepositoryBase {
     public async getAll({
@@ -13,17 +27,19 @@ class ProductsCachedRepository extends RepositoryBase {
         order_by = "quantity",
         order = "desc",
         category = "",
-        attribute = "",
-        attribute_term = "",
-        search = ""
-    }: GetProductsOptions): Promise<Product[]>
+        pa_supplier,
+        pa_color,
+        pa_base_color,
+        pa_size,
+        search
+    }: GetCachedProductsOptions): Promise<Product[]>
     {
         const products = (await productsCache.GetProducts())
-            .filter(p => category === "" || p.product.categories.some(c => c.slug === category))
+            .filter(p => !category || p.product.categories.some(c => c.slug === category))
             .filter(p => min_price === -1 || (p.product.price && p.product.price >= min_price))
             .filter(p => max_price === -1 || (p.product.price && p.product.price < max_price))
-            .filter(this.filterByAttribute(attribute, attribute_term))
-            .filter(p => search === "" || p.product.sku.toLowerCase().indexOf(search) > -1 || p.product.name.toLowerCase().indexOf(search) > -1 || p.product.variations.some(v => v.sku.toLowerCase().indexOf(search) > -1 || v.name.toLowerCase().indexOf(search) > -1))
+            .filter(this.filterByAttribute(pa_supplier, pa_color, pa_base_color, pa_size))
+            .filter(p => !search || p.product.sku.toLowerCase().indexOf(search) > -1 || p.product.name.toLowerCase().indexOf(search) > -1 || p.product.variations.some(v => v.sku.toLowerCase().indexOf(search) > -1 || v.name.toLowerCase().indexOf(search) > -1))
             .sort(this.getSorter(order_by, order))
             .slice(per_page * (page - 1), per_page * page)
             .map(item => item.product);
@@ -34,17 +50,19 @@ class ProductsCachedRepository extends RepositoryBase {
     public async getStatistic({
         min_price = -1,
         max_price = -1,
-        category = "",
-        attribute = "",
-        attribute_term = "",
-        search = ""
-    }): Promise<ProductsStatistic> 
+        category,
+        pa_supplier,
+        pa_color,
+        pa_base_color,
+        pa_size,
+        search
+    }: GetCachedProductsOptions): Promise<ProductsStatistic> 
     {
         const generalFilter = (products: ProductCacheItem[]) => products
-            .filter(p => category === "" || p.product.categories.some(c => c.slug === category))
-            .filter(p => search === "" || p.product.sku.toLowerCase().indexOf(search) > -1 || p.product.name.toLowerCase().indexOf(search) > -1 || p.product.variations.some(v => v.sku.toLowerCase().indexOf(search) > -1 || v.name.toLowerCase().indexOf(search) > -1));
+            .filter(p => !category || p.product.categories.some(c => c.slug === category))
+            .filter(p => !search || p.product.sku.toLowerCase().indexOf(search) > -1 || p.product.name.toLowerCase().indexOf(search) > -1 || p.product.variations.some(v => v.sku.toLowerCase().indexOf(search) > -1 || v.name.toLowerCase().indexOf(search) > -1));
         const attributeFilter = (products: ProductCacheItem[]) => products
-            .filter(this.filterByAttribute(attribute, attribute_term));
+        .filter(this.filterByAttribute(pa_supplier, pa_color, pa_base_color, pa_size));
         const priceFilter = (products: ProductCacheItem[]) => products
             .filter(p => min_price === -1 || (p.product.price && p.product.price >= min_price))
             .filter(p => max_price === -1 || (p.product.price && p.product.price < max_price))
@@ -130,20 +148,12 @@ class ProductsCachedRepository extends RepositoryBase {
         return [min, max];
     }
 
-    private filterByAttribute(attribute: string, attribute_term: string): (p: ProductCacheItem) => boolean {
-        return (p: ProductCacheItem) => {
-            if (attribute === "" && attribute_term === "")
-                return true;
-
-            const existedAttribute = p.product.attributes.find(a => a.slug === attribute);
-
-            if (!existedAttribute)
-                return false;
-            else if (attribute_term === "")
-                return true;
-            else 
-            return existedAttribute.options.some(o => o.slug.indexOf(attribute_term) > -1);
-        }
+    private filterByAttribute(pa_supplier: string | undefined, pa_color: string | undefined, pa_base_color: string | undefined, pa_size: string | undefined): (p: ProductCacheItem) => boolean {
+        return (p) =>
+        (!pa_supplier || p.product.attributes.some(a => a.slug === "supplier" && a.options.some(o => o.slug.indexOf(pa_supplier) > -1)))
+        && (!pa_color || p.product.attributes.some(a => a.slug === "color" && a.options.some(o => o.slug.indexOf(pa_color) > -1)))
+        && (!pa_base_color || p.product.attributes.some(a => a.slug === "base_color" && a.options.some(o => o.slug.indexOf(pa_base_color) > -1)))
+        && (!pa_size || p.product.attributes.some(a => a.slug === "size" && a.options.some(o => o.slug.indexOf(pa_size) > -1)));
     }
 }
 
