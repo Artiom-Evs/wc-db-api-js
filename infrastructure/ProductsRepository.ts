@@ -106,9 +106,11 @@ const createGetProductsOrVariationsPriceCirculationsQuery = (productOrVariationI
 SELECT 
     pm.post_id AS product_or_variation_id,
     CAST(pa_stock.meta_value AS INT) AS stock_quantity,
+    CAST(pa_price.meta_value AS DECIMAL(10, 4)) AS price,
     pm.meta_value AS price_circulations
 FROM wp_postmeta AS pm
 LEFT JOIN wp_postmeta AS pa_stock ON pm.post_id = pa_stock.post_id AND pa_stock.meta_key = "_stock"
+LEFT JOIN wp_postmeta AS pa_price ON pm.post_id = pa_price.post_id AND pa_price.meta_key = "_price"
 WHERE pm.meta_key = "_price_circulations" AND pm.post_id IN (${productOrVariationIds.map(() => "?").join(", ")});
 `;
 
@@ -134,6 +136,7 @@ export interface ProductsStatistic {
 interface DbProductOrVariationPriceCirculation {
     product_or_variation_id: number,
     stock_quantity: number,
+    price: number,
     price_circulations: PriceCirculations
 }
 
@@ -433,6 +436,7 @@ const variations = await this.getProductsVariations([product.id]);
         rows.forEach(row => {
             if (row.price_circulations)
                 row.price_circulations = unserialize(row.price_circulations);
+            row.price = parseFloat(row.price) ?? null;
         });
 
         return rows as DbProductOrVariationPriceCirculation[];

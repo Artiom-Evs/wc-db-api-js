@@ -151,5 +151,6 @@ export const ProductPriceCirculationSchema = z.object({
     product_id: z.number(),
     variation_id: z.number().optional(),
     stock_quantity: z.number().nullable(),
+    price: z.number().nullable(),
     price_circulations: z.nullable(PriceCirculationsSchema)
 });
