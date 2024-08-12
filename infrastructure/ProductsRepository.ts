@@ -30,7 +30,7 @@ SELECT
     post_content AS description, 
     post_date AS created, 
     post_modified AS modified, 
-    CAST(m1.meta_value AS DECIMAL(10, 4)) AS price,
+    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
     CAST(m2.meta_value AS INT) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS attributes,
@@ -57,7 +57,7 @@ SELECT
     post_content AS description, 
     post_date AS created, 
     post_modified AS modified, 
-    CAST(m1.meta_value AS DECIMAL(10, 4)) AS price,
+    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
     CAST(m2.meta_value AS INT) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS attributes,
@@ -84,7 +84,7 @@ SELECT
     post_name AS slug, 
     post_date AS created, 
     post_modified AS modified,
-    CAST(m1.meta_value AS DECIMAL(10, 4)) AS price,
+    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
     CAST(m2.meta_value AS INT) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS variation_image_gallery,
@@ -106,7 +106,7 @@ const createGetProductsOrVariationsPriceCirculationsQuery = (productOrVariationI
 SELECT 
     pm.post_id AS product_or_variation_id,
     CAST(pa_stock.meta_value AS INT) AS stock_quantity,
-    CAST(pa_price.meta_value AS DECIMAL(10, 4)) AS price,
+    CAST(pa_price.meta_value AS DECIMAL(10, 2)) AS price,
     pm.meta_value AS price_circulations
 FROM wp_postmeta AS pm
 LEFT JOIN wp_postmeta AS pa_stock ON pm.post_id = pa_stock.post_id AND pa_stock.meta_key = "_stock"
