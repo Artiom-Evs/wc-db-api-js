@@ -42,7 +42,7 @@ class PostsRepository extends RepositoryBase {
 
     public async getBySlug(slug: string): Promise<Post | null> {
         const [[row]] = await this._pool.execute<any[]>(GET_BY_SLUG_QUERY, [slug]);
-        const [image] = await imagesRepository.getImagesByIds([ row.thumbnail_id ?? 0 ], "large");
+        const [image] = await imagesRepository.getImagesByIds([ row.thumbnail_id ?? 0 ], "original");
 
         const post = row as Post ?? null;
 
