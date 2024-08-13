@@ -61,8 +61,6 @@ class ImagesRepository extends RepositoryBase {
 
         dbImages.forEach(i => this.changeImageSize(i, targetSize));
         
-        dbImages.forEach(i => this.changeImageSize(i, "medium"));
-
         return variationRows as DBImage[];
     }    
 
