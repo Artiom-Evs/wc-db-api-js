@@ -8,7 +8,9 @@ const GET_ALL_QUERY = `
 select ID AS id, post_author AS author, post_content AS content, post_title AS title, post_excerpt AS excerpt, post_status AS status, post_name AS slug, post_parent AS parent, menu_order, post_type AS type, post_date AS created, post_modified AS modified, CAST(pm.meta_value AS INT) AS thumbnail_id
 from wp_posts AS p
 LEFT JOIN wp_postmeta AS pm ON p.ID = pm.post_id AND pm.meta_key = "_thumbnail_id"
-where post_type = "post" AND post_name != "";
+where post_type = "post" AND post_name != ""
+ORDER BY post_date
+LIMIT ? OFFSET ?;
 `;
 
 const GET_BY_SLUG_QUERY = `
@@ -20,9 +22,14 @@ where post_type = "post"
 LIMIT 1;
 `;
 
+interface GetPostsOptions {
+    page: number;
+    per_page: number;
+}
+
 class PostsRepository extends RepositoryBase {
-    public async getAll(): Promise<Post[]> {
-        const [rows] = await this._pool.execute<any[]>(GET_ALL_QUERY, []);
+    public async getAll(options: GetPostsOptions): Promise<Post[]> {
+        const [rows] = await this._pool.execute<any[]>(GET_ALL_QUERY, [options.per_page, options.per_page * (options.page - 1)]);
         const thumbnailIds = rows.map(r => r.thumbnail_id ?? 0);
         const posts = rows as Post[];
         const images = await imagesRepository.getImagesByIds(thumbnailIds, "medium");
