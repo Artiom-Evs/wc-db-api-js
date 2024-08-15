@@ -1,4 +1,4 @@
-import { Post } from "../schemas";
+import { Post, PostsStatistic } from "../schemas";
 import categoriesRepository from "./CategoriesRepository";
 import pool from "./DbConnectionPool";
 import imagesRepository from "./ImagesRepository";
@@ -11,6 +11,12 @@ LEFT JOIN wp_postmeta AS pm ON p.ID = pm.post_id AND pm.meta_key = "_thumbnail_i
 where post_type = "post" AND post_name != ""
 ORDER BY post_date
 LIMIT ? OFFSET ?;
+`;
+
+const GET_STATISTIC = `
+select COUNT(1) AS posts_count
+from wp_posts AS p
+where post_type = "post" AND post_name != "";
 `;
 
 const GET_BY_SLUG_QUERY = `
@@ -61,6 +67,13 @@ class PostsRepository extends RepositoryBase {
         post.thumbnail = image?.src ?? null;
 
         return post;
+    }
+
+    public async getStatistic(): Promise<PostsStatistic> {
+        const [[row]] = await this._pool.execute<any[]>(GET_STATISTIC);
+        const statistic = row as PostsStatistic;
+        
+        return statistic;
     }
 }
 
