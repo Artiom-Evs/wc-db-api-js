@@ -126,6 +126,9 @@ class CategoriesRepository extends RepositoryBase {
     }
 
     public async getPostsCategories(postIds: number[]): Promise<DBCategory[]> {
+        if (postIds.length === 0)
+            return [];
+        
         const query = createGetPostsCategoriesQuery (postIds);
         const [rows] = await this._pool.execute<any[]>(query, postIds);
         return rows as DBCategory[];
