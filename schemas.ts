@@ -148,7 +148,9 @@ export const PostSchema = z.object({
     modified: z.union([ ez.dateOut(), z.string().datetime() ]),
     thumbnail: z.string().nullable(),
     menu_order: z.number(),
-    categories: z.array(CategorySchema)
+    categories: z.array(CategorySchema),
+    prev_post: z.string().nullable().optional(),
+    next_post: z.string().nullable().optional()
 });
 
 export const ProductPriceCirculationSchema = z.object({
