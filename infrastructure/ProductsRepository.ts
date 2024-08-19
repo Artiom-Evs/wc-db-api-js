@@ -15,11 +15,11 @@ CALL GetProductsStatisticV2(?, ?, ?, ?, ?, ?);
 `;
 
 const GET_BY_ID_QUERY = `
-CALL GetProductByID(?);
+CALL GetProductByIDV2(?);
 `;
 
 const GET_BY_SLUG_QUERY = `
-CALL GetProductBySlug(?);
+CALL GetProductBySlugV2(?);
 `;
 
 const createGetProductsByIdsQuery = (ids: number[]) => `
