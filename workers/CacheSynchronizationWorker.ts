@@ -4,6 +4,7 @@ import productsCache, { toCacheItem } from "../services/ProductsCache";
 import productsRepository from "../infrastructure/ProductsRepository";
 import pool from "../infrastructure/DbConnectionPool";
 import { unserialize } from "php-serialize";
+import { randomInt } from "crypto";
 
 interface ChangeLogItem {
     ID: number,
@@ -16,9 +17,21 @@ class CacheSynchronizationWorker {
     private _lastAppliedChange: number = 0;
 
     public async start(): Promise<void>{
-        await this.importProducts();
+        const collection = docStorage.collection<Product>("products");
+        const cachedProductsCount  = await collection.count({ });
+
+        // if cache is empty, then firstly import products from main database to cache database
+        if (cachedProductsCount  === 0) {
+            await this.importProducts();
         await this.loadProducts();
-        this.startPeriodicHandler();
+        }
+        else {
+            await this.loadProducts();
+            await this.importProducts();
+        }
+        
+        this.startUpdateMetadataPeriodicHandler();
+        this.startReimportProductsPeriodicHandler();
     }
 
     private async loadProducts(): Promise<void> {
@@ -62,7 +75,7 @@ class CacheSynchronizationWorker {
         console.debug("Finish!");
     }
 
-    private startPeriodicHandler(): void {
+    private startUpdateMetadataPeriodicHandler(): void {
         const interval = 15000;
 
         setTimeout(async () => {
@@ -70,10 +83,27 @@ class CacheSynchronizationWorker {
                 await this.applyChangesToCache();
             }
             catch (e) {
-                console.error("Error while executing periodic handler.", e);
+                console.error("Error while periodic metadata updating.", e);
             }
             finally {
-                this.startPeriodicHandler();
+                this.startUpdateMetadataPeriodicHandler();
+            }
+        }, interval);
+    }
+
+    private startReimportProductsPeriodicHandler(): void {
+        // milliseconds untill 6:00 +/- 10 minutes
+        const interval = this.getMillisecondsUntil("6:00") + randomInt(-10 * 60 * 1000, 10 * 60 * 1000);
+
+        setTimeout(async () => {
+            try {
+                await this.importProducts();
+            }
+            catch (e) {
+                console.error("Error while periodic reimporting products.", e);
+            }
+            finally {
+                this.startUpdateMetadataPeriodicHandler();
             }
         }, interval);
     }
@@ -116,6 +146,27 @@ class CacheSynchronizationWorker {
             case "_price_circulations":
                 item.price_circulations = unserialize(change.meta_value);
         }
+    }
+
+    // takes time in format "HH:MM" and returns milliseconds from now to this time in future
+    private getMillisecondsUntil(time: string): number {
+        const [targetHours, targetMinutes] = time.split(":").map(Number);
+        const now = new Date();
+        const targetTime = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+            targetHours,
+            targetMinutes,
+            0,
+            0
+        );
+    
+        if (targetTime <= now) {
+            targetTime.setDate(targetTime.getDate() + 1);
+        }
+    
+        return targetTime.getTime() - now.getTime();
     }
 }
 
