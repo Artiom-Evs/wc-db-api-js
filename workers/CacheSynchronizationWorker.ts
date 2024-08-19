@@ -6,6 +6,14 @@ import pool from "../infrastructure/DbConnectionPool";
 import { unserialize } from "php-serialize";
 import { randomInt } from "crypto";
 
+const synchronizationFreequancy = parseInt(process.env.CACHE_PRODUCTS_SYNCHRONIZATION_FREEQUANCY_MS ?? "");
+const reimportTime = process.env.CACHE_PRODUCTS_REIMPORT_TIME;
+
+if (!synchronizationFreequancy) 
+    throw new Error (`"CACHE_PRODUCTS_SYNCHRONIZATION_FREEQUANCY_MS" environment variable should be defined and should be number.`);
+if (!reimportTime || !/^\d{2}:\d{2}$/.test(reimportTime)) 
+    throw new Error (`"CACHE_PRODUCTS_REIMPORT_TIME" environment variable should be defined and has a "HH:MM" format.`);
+
 interface ChangeLogItem {
     ID: number,
     product_or_variation_id: number,
@@ -76,7 +84,7 @@ class CacheSynchronizationWorker {
     }
 
     private startUpdateMetadataPeriodicHandler(): void {
-        const interval = 15000;
+        const interval = synchronizationFreequancy;
 
         setTimeout(async () => {
             try {
@@ -93,7 +101,7 @@ class CacheSynchronizationWorker {
 
     private startReimportProductsPeriodicHandler(): void {
         // milliseconds untill 6:00 +/- 10 minutes
-        const interval = this.getMillisecondsUntil("6:00") + randomInt(-10 * 60 * 1000, 10 * 60 * 1000);
+        const interval = this.getMillisecondsUntil(reimportTime ?? "") + randomInt(-10 * 60 * 1000, 10 * 60 * 1000);
 
         setTimeout(async () => {
             try {
