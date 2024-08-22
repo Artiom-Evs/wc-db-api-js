@@ -28,15 +28,12 @@ class CacheSynchronizationWorker {
         const collection = docStorage.collection<Product>("products");
         const cachedProductsCount  = await collection.count({ });
 
-        // if cache is empty, then firstly import products from main database to cache database
-        if (cachedProductsCount  === 0) {
-            await this.importProducts();
-        await this.loadProducts();
-        }
-        else {
+        // if cache is not empty, then firstly initialize memory cache
+        if (cachedProductsCount > 0)
             await this.loadProducts();
-            await this.importProducts();
-        }
+        
+        await this.importProducts();
+        await this.loadProducts();
         
         this.startUpdateMetadataPeriodicHandler();
         this.startReimportProductsPeriodicHandler();
@@ -50,6 +47,7 @@ class CacheSynchronizationWorker {
         const products = await collection.find({ }).toArray();
         const items = products.map(p => toCacheItem(p));
         productsCache.updateProducts(() => items);
+        
         console.debug("Cached products loaded. Count:", items.length);
     }
 
@@ -106,6 +104,7 @@ class CacheSynchronizationWorker {
         setTimeout(async () => {
             try {
                 await this.importProducts();
+                await this.loadProducts();
             }
             catch (e) {
                 console.error("Error while periodic reimporting products.", e);
