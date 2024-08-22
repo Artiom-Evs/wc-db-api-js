@@ -430,6 +430,9 @@ const variations = await this.getProductsVariations([product.id]);
     }
 
     public async getCirculations(productOrVariationIds: number[]): Promise<DbProductOrVariationPriceCirculation[]> {
+        if (productOrVariationIds.length === 0)
+            return [];
+        
         const query = createGetProductsOrVariationsPriceCirculationsQuery(productOrVariationIds);
         const [rows] = await this._pool.execute<any[]>(query, productOrVariationIds);
 
