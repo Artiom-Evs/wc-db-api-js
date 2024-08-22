@@ -48,9 +48,6 @@ class PostsRepository extends RepositoryBase {
         const thumbnailIds = rows.map(r => r.thumbnail_id ?? 0);
         const posts = rows as Post[];
         const images = await imagesRepository.getImagesByIds(thumbnailIds, "medium");
-
-        console.debug("IMAGES:", posts);
-
         const postIds = posts.map(p => p.id);
         const categories = await categoriesRepository.getPostsCategories(postIds);
 
