@@ -7,7 +7,7 @@ select ID AS id, post_author AS author, post_content AS content, post_title AS t
     m1.meta_value AS sections
 from wp_posts
 LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "sections_json"
-where post_type = "page";
+where post_type = "page" AND post_status = "publish";
 `;
 
 const GET_BY_SLUG_QUERY = `
@@ -15,7 +15,7 @@ select ID AS id, post_author AS author, post_content AS content, post_title AS t
     m1.meta_value AS sections
 from wp_posts
 LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "sections_json"
-where post_type = "page"
+where post_type = "page" AND post_status = "publish"
     AND post_name = ?
 LIMIT 1;
 `;
