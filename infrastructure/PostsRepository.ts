@@ -8,7 +8,7 @@ const GET_ALL_QUERY = `
 select ID AS id, post_author AS author, post_content AS content, post_title AS title, post_excerpt AS excerpt, post_status AS status, post_name AS slug, post_parent AS parent, menu_order, post_type AS type, post_date AS created, post_modified AS modified, CAST(pm.meta_value AS INT) AS thumbnail_id
 from wp_posts AS p
 LEFT JOIN wp_postmeta AS pm ON p.ID = pm.post_id AND pm.meta_key = "_thumbnail_id"
-where post_type = "post" AND post_name != ""
+where post_type = "post" AND post_status = "publish" AND post_name != ""
 ORDER BY post_date
 LIMIT ? OFFSET ?;
 `;
@@ -16,13 +16,13 @@ LIMIT ? OFFSET ?;
 const GET_STATISTIC = `
 select COUNT(1) AS posts_count
 from wp_posts AS p
-where post_type = "post" AND post_name != "";
+where post_type = "post" AND post_status = "publish" AND post_name != "";
 `;
 
 const GET_BY_SLUG_QUERY = `
 select ID AS id, post_author AS author, post_content AS content, post_title AS title, post_excerpt AS excerpt, post_status AS status, post_name AS slug, post_parent AS parent, menu_order, post_type AS type, post_date AS created, post_modified AS modified, CAST(pm.meta_value AS INT) AS thumbnail_id,
     (SELECT post_name FROM wp_posts AS np
-    where np.post_type = "post" AND post_name != "" AND np.post_date < p.post_date
+    where np.post_type = "post" AND post_status = "publish" AND post_name != "" AND np.post_date < p.post_date
     ORDER BY np.post_date DESC
     LIMIT 1) AS prev_post,
     (SELECT post_name FROM wp_posts AS np
