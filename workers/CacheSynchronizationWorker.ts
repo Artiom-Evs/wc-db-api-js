@@ -21,9 +21,13 @@ interface ChangeLogItem {
     meta_value: string
 }
 
-class CacheSynchronizationWorker {
-    private _lastAppliedChange: number = 0;
+const WORKER_DATA_KEY = "cache-synchronization-worker";
+interface WorkerData {
+    key: string,
+    lastAppliedChange: number
+}
 
+class CacheSynchronizationWorker {
     public async start(): Promise<void>{
         const collection = docStorage.collection<Product>("products");
         const cachedProductsCount  = await collection.count({ });
@@ -114,8 +118,10 @@ class CacheSynchronizationWorker {
     }
 
     private async applyChangesToMemoryCache(): Promise<void> {
+        const workerData = await this.getOrCreateWorkerData();
+
         const query = `SELECT ID, product_or_variation_id, meta_key, meta_value FROM wp_postmeta_change_log WHERE ID > ? LIMIT 1000;`;
-        const [changes] = await pool.query<any[]>(query, [this._lastAppliedChange]) as any as [ChangeLogItem[]];
+        const [changes] = await pool.query<any[]>(query, [workerData.lastAppliedChange]) as any as [ChangeLogItem[]];
 
         if (!changes || changes.length === 0)
             return;
@@ -136,7 +142,8 @@ class CacheSynchronizationWorker {
             return products;
         });
 
-        this._lastAppliedChange = Math.max(...changes.map(c => c.ID));
+        const lastAppliedChange = Math.max(...changes.map(c => c.ID));
+        await this.updateWorkerData({ lastAppliedChange });
         console.debug(changes.length, "changes applied to cache.");
     }
 
@@ -172,6 +179,26 @@ class CacheSynchronizationWorker {
         }
     
         return targetTime.getTime() - now.getTime();
+    }
+
+    private async getOrCreateWorkerData(): Promise<WorkerData> {
+        const collection = docStorage.collection<WorkerData>("system_data");
+        let data = await collection.findOne({ key: WORKER_DATA_KEY });
+
+        if (!data) {
+            await collection.insertOne({ key: WORKER_DATA_KEY, lastAppliedChange: 0 });
+            data = await collection.findOne({ key: WORKER_DATA_KEY });
+        }
+
+        if (!data)
+            throw new Error("Failed to get the cache synchronization worker system data.");
+
+        return data;
+    }
+
+    private async updateWorkerData(data: Partial<WorkerData>): Promise<void> {
+        const collection = docStorage.collection<WorkerData>("system_data");
+        await collection.updateOne({ key: WORKER_DATA_KEY }, { $set: data });
     }
 }
 
