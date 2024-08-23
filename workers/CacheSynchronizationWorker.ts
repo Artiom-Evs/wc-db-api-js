@@ -30,16 +30,16 @@ class CacheSynchronizationWorker {
 
         // if cache is not empty, then firstly initialize memory cache
         if (cachedProductsCount > 0)
-            await this.loadProducts();
+            await this.loadProductsFromMongoCacheToMemoryCache();
         
-        await this.importProducts();
-        await this.loadProducts();
+        await this.loadProductsFromMainDBToMongoCache();
+        await this.loadProductsFromMongoCacheToMemoryCache();
         
-        this.startUpdateMetadataPeriodicHandler();
-        this.startReimportProductsPeriodicHandler();
+        this.startPeriodicMemoryCacheUpdating();
+        this.StartPeriodicMongoDBCacheReloading();
     }
 
-    private async loadProducts(): Promise<void> {
+    private async loadProductsFromMongoCacheToMemoryCache(): Promise<void> {
         console.debug("Start loading cached products.");
 
         const collection = docStorage.collection<Product>("products");
@@ -51,8 +51,8 @@ class CacheSynchronizationWorker {
         console.debug("Cached products loaded. Count:", items.length);
     }
 
-    private async importProducts(): Promise<void> {
-        console.debug("Start importing products from main database to cache database.");
+    private async loadProductsFromMainDBToMongoCache(): Promise<void> {
+        console.debug("Start loading products from main DB to MongoDB cache.");
 
         const collection = docStorage.collection<Product>("products");
         const productsCount = (await productsRepository.getProductsStatistic({ })).products_count;
@@ -61,61 +61,59 @@ class CacheSynchronizationWorker {
             const products = await productsRepository.getAll({ page: i });
             const productIds = products.map(p => p.id);
 
-            const existedProducts = await collection.find({ id: { $in: productIds }}).toArray();
-            const existedProductIds = existedProducts.map((p: any) => p.id) as number[];
-
-            const notExistedProducts = products.filter(p => !existedProductIds.includes(p.id));
-            console.debug(notExistedProducts.length, "products  from page", i);
-
-            if (notExistedProducts.length > 0) {
+            if (products.length > 0) {
                 const productsMap: Map<number, Product> = new Map();
-                notExistedProducts.forEach(p => {
+
+                products.forEach(p => {
                     if (!productsMap.has(p.id))
                         productsMap.set(p.id, p);
                 });
 
+                await collection.deleteMany({ id: { $in: productIds }});
                 await collection.insertMany([...productsMap.values()]);
+
+                console.debug(productsMap.size, "products loaded from page", i);;
             }
         }
 
-        console.debug("Finish!");
+        console.debug("Products successfully loaded from main DB to MongoDB cache.");
     }
 
-    private startUpdateMetadataPeriodicHandler(): void {
+    private startPeriodicMemoryCacheUpdating(): void {
         const interval = synchronizationFreequancy;
 
         setTimeout(async () => {
             try {
-                await this.applyChangesToCache();
+                await this.applyChangesToMemoryCache();
             }
             catch (e) {
-                console.error("Error while periodic metadata updating.", e);
+                console.error("Error while periodic memory cache updating.", e);
             }
             finally {
-                this.startUpdateMetadataPeriodicHandler();
+                this.startPeriodicMemoryCacheUpdating();
             }
         }, interval);
     }
 
-    private startReimportProductsPeriodicHandler(): void {
+    private StartPeriodicMongoDBCacheReloading(): void {
         // milliseconds untill 6:00 +/- 10 minutes
         const interval = this.getMillisecondsUntil(reimportTime ?? "") + randomInt(-10 * 60 * 1000, 10 * 60 * 1000);
 
         setTimeout(async () => {
             try {
-                await this.importProducts();
-                await this.loadProducts();
+                await this.loadProductsFromMainDBToMongoCache();
+                await this.loadProductsFromMongoCacheToMemoryCache();
             }
             catch (e) {
-                console.error("Error while periodic reimporting products.", e);
+                console.error("Error while periodic MongoDB cache reloading.", e);
             }
             finally {
-                this.startUpdateMetadataPeriodicHandler();
+                this.startPeriodicMemoryCacheUpdating();
             }
         }, interval);
     }
 
-    private async applyChangesToCache(): Promise<void> {
+    private async applyChangesToMemoryCache(): Promise<void> {
         const query = `SELECT ID, product_or_variation_id, meta_key, meta_value FROM wp_postmeta_change_log WHERE ID > ? LIMIT 1000;`;
         const [changes] = await pool.query<any[]>(query, [this._lastAppliedChange]) as any as [ChangeLogItem[]];
 
@@ -127,11 +125,11 @@ class CacheSynchronizationWorker {
         productsCache.updateProducts(() => {
             for (const product of products) {
                 changes.filter(c => c.product_or_variation_id === product.product.id)
-                    .forEach(change => this.applyChange(change, product.product));
+                    .forEach(change => this.applyChangeToMemoryCache(change, product.product));
 
                 for (const variation of product.product.variations) {
                     changes.filter(c => c.product_or_variation_id === variation.id)
-                        .forEach(change => this.applyChange(change, variation));
+                        .forEach(change => this.applyChangeToMemoryCache(change, variation));
                 }
             }
 
@@ -142,7 +140,7 @@ class CacheSynchronizationWorker {
         console.debug(changes.length, "changes applied to cache.");
     }
 
-    private applyChange(change: ChangeLogItem, item: Product | Variation): void {
+    private applyChangeToMemoryCache(change: ChangeLogItem, item: Product | Variation): void {
         switch (change.meta_key) {
             case "_stock":
                 item.stock_quantity = parseInt(change.meta_value) ?? 0;
