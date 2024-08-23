@@ -67,7 +67,6 @@ class ProductsCachedRepository extends RepositoryBase {
             .filter(p => min_price === -1 || (p.product.price && p.product.price >= min_price))
             .filter(p => max_price === -1 || (p.product.price && p.product.price < max_price))
         
-        
         const products = generalFilter((await productsCache.GetProducts()));
         const products_count = attributeFilter(priceFilter(products)).length;
         const [min, max] = this.getMinAndMaxPrice(attributeFilter(products));
@@ -137,6 +136,11 @@ class ProductsCachedRepository extends RepositoryBase {
             return [0, 0];
 
         products.forEach(product => {
+            if (product.product.price && product.product.price < min)
+                min = product.product.price;
+            if (product.product.price && product.product.price > max)
+                max = product.product.price;
+
             product.product.variations.forEach(variation => {
                 if (variation.price && variation.price < min)
                     min = variation.price;
