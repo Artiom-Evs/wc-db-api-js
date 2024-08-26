@@ -17,6 +17,7 @@ export type Menu = z.infer<typeof MenuSchema>;
 export type Post = z.infer<typeof PostSchema>;
 export type ProductPriceCirculation = z.infer<typeof ProductPriceCirculationSchema>;
 export type PostsStatistic = z.infer<typeof PostsStatisticSchema>;
+export type MinimizedProduct = z.infer<typeof MinimizedProductSchema>;
 
 export const ImageSchema = z.object({
     id: z.number(),
@@ -163,4 +164,16 @@ export const ProductPriceCirculationSchema = z.object({
 
 export const PostsStatisticSchema = z.object({
     posts_count: z.number()
+});
+
+export const MinimizedProductSchema = z.object({
+    id: z.number(),
+    parent_id: z.number(),
+    sku: z.string(),
+    slug: z.string(), 
+    name: z.string(),
+    stock_quantity: z.number().nullable(),
+    price: z.number().nullable(),
+    price_circulations: PriceCirculationsSchema.nullable(),
+    image: ImageSchema.nullable()
 });

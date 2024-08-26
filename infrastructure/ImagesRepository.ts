@@ -27,6 +27,24 @@ INNER JOIN wp_postmeta AS pm ON p.ID = pm.post_id AND pm.meta_key = "_wp_attachm
 WHERE post_parent IN (${ids.map(() => "?").join(", ")}) AND post_mime_type LIKE "image/%";
 `;
 
+const createGetSingleProductsImagesQuery = (ids: number[]) => `
+SELECT 
+    p.ID AS id, 
+    post_parent AS parent_id, 
+    post_title AS name, 
+    guid AS src,
+    pm.meta_value AS meta
+FROM wp_posts as p 
+INNER JOIN wp_postmeta AS pm ON p.ID = pm.post_id AND pm.meta_key = "_wp_attachment_metadata"
+INNER JOIN 
+    (SELECT ID, MIN(post_parent) AS first_image_id
+    FROM wp_posts
+    WHERE post_parent IN (${ids.map(() => "?").join(", ")}) AND post_mime_type LIKE "image/%"
+    GROUP BY post_parent
+    ) AS p2 ON p.ID = p2.ID
+LIMIT ${ids.length};
+`;
+
 export interface DBImage {
     id: number,
     parent_id: number,
@@ -43,6 +61,19 @@ class ImagesRepository extends RepositoryBase {
             return [];
 
         const query = createGetProductsImagesQuery(productIds);
+        const [variationRows] = await this._pool.execute(query, productIds);
+        const dbImages = variationRows as DBImage[];
+
+        dbImages.forEach(i => this.changeImageSize(i, targetSize));
+        
+        return dbImages;
+    }
+
+    public async getSingleProductsImages(productIds: number[], targetSize: ImageSizes): Promise<DBImage[]> {
+        if (productIds.length === 0)
+            return [];
+
+        const query = createGetSingleProductsImagesQuery (productIds);
         const [variationRows] = await this._pool.execute(query, productIds);
         const dbImages = variationRows as DBImage[];
 
