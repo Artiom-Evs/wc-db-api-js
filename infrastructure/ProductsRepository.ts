@@ -1,4 +1,4 @@
-import { Attribute, VariationAttribute, Category, Image, Product, Variation, ProductPriceCirculation, PriceCirculations } from "../schemas";
+import { Attribute, VariationAttribute, Category, Image, Product, Variation, ProductPriceCirculation, PriceCirculations, MinimizedProduct } from "../schemas";
 import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
 import { unserialize } from "php-serialize";
@@ -114,6 +114,28 @@ LEFT JOIN wp_postmeta AS pa_price ON pm.post_id = pa_price.post_id AND pa_price.
 WHERE pm.meta_key = "_price_circulations" AND pm.post_id IN (${productOrVariationIds.map(() => "?").join(", ")});
 `;
 
+const createGetMinimizedProductsByIdsQuery = (ids: number[]) => `
+SELECT 
+    ID AS id,
+    post_parent AS parent_id,
+    post_name AS slug, 
+    post_title AS name, 
+    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
+    CAST(m2.meta_value AS INT) AS stock_quantity,
+    m3.meta_value AS sku,
+    m4.meta_value AS price_circulations,
+    m5.meta_value AS variation_image_gallery
+FROM wp_posts
+LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
+LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
+LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
+LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_price_circulations"
+LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "variation_image_gallery"
+WHERE ID IN (${ids.map(() => "?").join(", ")})
+    AND post_type IN ("product" , "product_variation")
+    AND post_status = "publish"
+LIMIT ${ids.length};
+`;
 export interface GetProductsOptions {
     page?: number,
     per_page?: number,
@@ -325,6 +347,37 @@ class ProductsRepository extends RepositoryBase {
         });
 
         return products;
+    }
+
+    public async getMinimized(productIds: number[], variationIds: number[]): Promise<MinimizedProduct[]> {
+        if (productIds.length === 0 && variationIds.length === 0)
+            return [];
+
+        const allIds = [...productIds, ...variationIds];
+        const query = createGetMinimizedProductsByIdsQuery(allIds);
+        const [rows] = await this._pool.execute<any[]>(query, allIds);
+        const minimizedProducts = rows as MinimizedProduct[];
+        
+        const variationImageIds = rows
+            .filter(row => row.variation_image_gallery)
+            .map(row => parseInt((row.variation_image_gallery as string)?.split(",")?.[0] ?? "0"));
+        const productImages = await imagesRepository.getProductsImages([...productIds], "medium");
+        const variationImages = await imagesRepository.getImagesByIds(variationImageIds, "medium");
+
+        minimizedProducts.forEach(mp => {
+            if (mp.price_circulations)
+                mp.price_circulations = unserialize(mp.price_circulations as any);
+
+            mp.stock_quantity = parseInt(mp. stock_quantity as any) ?? null;
+            mp.price = parseFloat(mp. price as any) ?? null;
+            
+            if (mp.parent_id === 0)
+                mp.image = productImages.find(i => i.parent_id === mp.id) ?? null;
+            else
+            mp.image = variationImages.find(i => ((mp as any).variation_image_gallery as string)?.startsWith(i.id.toString())) ?? null;
+        });
+
+        return minimizedProducts;
     }
 
     public async getById(id: number): Promise<Product | null> {

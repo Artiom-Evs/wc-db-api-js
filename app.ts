@@ -22,6 +22,7 @@ import { GetPostsEndpoint } from "./endpoints/GetPostsEndpoint";
 import { GetPostBySlugEndpoint } from "./endpoints/GetPostBySlugEndpoint";
 import synchronizationWorker from "./workers/CacheSynchronizationWorker";
 import { PostGetProductsCirculationsEndpoint } from "./endpoints/PostGetProductsCirculationsEndpoint";
+import { PostGetMinimizedProductsEndpoint } from "./endpoints/PostGetMinimizedProductsEndpoint";
 
 synchronizationWorker.start();
 
@@ -61,6 +62,7 @@ const routing: Routing = {
         },
         v2: {
             products: {
+                minimized: PostGetMinimizedProductsEndpoint,
                 circulations: PostGetProductsCirculationsEndpoint,
                 ":slug": GetProductBySlugEndpoint,
                 "": GetProductsEndpoint
