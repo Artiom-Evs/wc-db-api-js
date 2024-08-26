@@ -20,14 +20,11 @@ jobs:
 
     - name: Deploy Application via SSH
       run: |
-        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} << 'EOF'
-          cd ${APP_DIRECTORY}
-
-          git pull origin main
-
-          docker compose build
-          docker compose down
-          docker compose up -d
-
-          echo "Deployment complete."
-        EOF
+        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} "
+          cd ${APP_DIRECTORY} &&
+          git pull origin main &&
+          docker compose build &&
+          docker compose down &&
+          docker compose up -d &&
+          echo 'Deployment complete.'
+        "
