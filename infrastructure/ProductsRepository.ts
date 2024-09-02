@@ -124,7 +124,8 @@ SELECT
     CAST(m2.meta_value AS INT) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS price_circulations,
-    m5.meta_value AS variation_image_gallery
+    m5.meta_value AS variation_image_gallery,
+    m6.meta_value AS attributes
 FROM wp_posts AS p1
 LEFT JOIN wp_posts AS p2 ON CASE WHEN p1.post_parent = 0 THEN p1.ID ELSE p1.post_parent END = p2.ID
 LEFT JOIN wp_postmeta AS m1 ON p1.ID = m1.post_id AND m1.meta_key = "_price"
@@ -132,6 +133,7 @@ LEFT JOIN wp_postmeta AS m2 ON p1.ID = m2.post_id AND m2.meta_key = "_stock"
 LEFT JOIN wp_postmeta AS m3 ON p1.ID = m3.post_id AND m3.meta_key = "_sku"
 LEFT JOIN wp_postmeta AS m4 ON p1.ID = m4.post_id AND m4.meta_key = "_price_circulations"
 LEFT JOIN wp_postmeta AS m5 ON p1.ID = m5.post_id AND m5.meta_key = "variation_image_gallery"
+LEFT JOIN wp_postmeta AS m6 ON CASE WHEN p1.post_parent = 0 THEN p1.ID ELSE p1.post_parent END  = m6.post_id AND m6.meta_key = "_product_attributes"
 WHERE p1.ID IN (${ids.map(() => "?").join(", ")})
     AND p1.post_type IN ("product" , "product_variation")
     AND p1.post_status = "publish"
@@ -358,6 +360,13 @@ class ProductsRepository extends RepositoryBase {
         const query = createGetMinimizedProductsByIdsQuery(allIds);
         const [rows] = await this._pool.execute<any[]>(query, allIds);
         const minimizedProducts = rows as MinimizedProduct[];
+        const allParentIds = minimizedProducts.map(p => p.parent_id ? p.parent_id : p.id);
+
+        const globalAttributes: Attribute[] = await attributesRepository.getAll();
+        const attributesTerms = await attributesRepository.getProductsAttributeTerms(allParentIds);
+        const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
+
+        console.debug("VARIATIONTERMS:", variationsAttributes);
         
         const variationImageIds = rows
             .filter(row => row.variation_image_gallery)
@@ -375,7 +384,9 @@ class ProductsRepository extends RepositoryBase {
             if (mp.parent_id === 0)
                 mp.image = productImages.find(i => i.parent_id === mp.id) ?? null;
             else
-            mp.image = variationImages.find(i => ((mp as any).variation_image_gallery as string)?.startsWith(i.id.toString())) ?? null;
+                mp.image = variationImages.find(i => ((mp as any).variation_image_gallery as string)?.startsWith(i.id.toString())) ?? null;
+
+            this.initMinimizedProductAttributes(mp, globalAttributes, attributesTerms , variationsAttributes);
         });
 
         return minimizedProducts;
@@ -572,6 +583,44 @@ const variations = await this.getProductsVariations([product.id]);
                     option: a.option
                 };
             })
+    }
+
+    // firstly initializes attributes as a simple product attributes and secondly verrides option values by variation attribute options
+    // it is required to guaarantee that all (including static ) attributes will be initialized
+    private initMinimizedProductAttributes(product: MinimizedProduct, globalAttributes: Attribute[], attributesTerms: DBProductAttributeTerm[], variationsAttributes: DBVariationAttribute[]): void {
+        if (!product.attributes) {
+            product.attributes = [];
+            return;
+        }
+
+        // initialize attributes as a simple product attributes
+        const attributes = Object.values(unserialize(product.attributes as any));
+        product.attributes = attributes.map((a: any) => {
+            const gAttribute = globalAttributes.find(ga => `pa_${ga.slug}` === a.name);
+            const option = attributesTerms.find(t => (t.parent_id === product.id || t.parent_id === product.parent_id) && t.attribute_slug === a.name);
+
+            if (!gAttribute)
+                throw new Error(`Product with ID ${product.id} contains unexisted attribute "${a.name}".`);
+            else if (!option)
+                throw new Error(`Product with ID ${product.id} contains unexisted attribute option "${a.name}:${a.option}". ${JSON.stringify(attributesTerms, null, 4)}`);
+
+            return {
+                id: gAttribute.id,
+                name: gAttribute.slug,
+                option: option.slug
+            };
+        });
+
+        if (product.parent_id === 0) 
+            return;
+
+        // override option values by variation attribute options
+        const variationAttributes = variationsAttributes.filter(a => a.parent_id === product.id);
+        product.attributes.forEach(pAttribute => {
+            const vAttribute = variationAttributes.find(va => va.slug === "pa_" + pAttribute.name);
+            if (vAttribute)
+                pAttribute.option = vAttribute.option;
+        })
     }
 
     private async getVariationsImages(variations: Variation[], targetSize: ImageSizes): Promise<DBImage[]> {
