@@ -116,24 +116,25 @@ WHERE pm.meta_key = "_price_circulations" AND pm.post_id IN (${productOrVariatio
 
 const createGetMinimizedProductsByIdsQuery = (ids: number[]) => `
 SELECT 
-    ID AS id,
-    post_parent AS parent_id,
-    post_name AS slug, 
-    post_title AS name, 
+    p1.ID AS id,
+    p1.post_parent AS parent_id,
+    p2.post_name AS slug, 
+    p1.post_title AS name, 
     CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
     CAST(m2.meta_value AS INT) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS price_circulations,
     m5.meta_value AS variation_image_gallery
-FROM wp_posts
-LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
-LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
-LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
-LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_price_circulations"
-LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "variation_image_gallery"
-WHERE ID IN (${ids.map(() => "?").join(", ")})
-    AND post_type IN ("product" , "product_variation")
-    AND post_status = "publish"
+FROM wp_posts AS p1
+LEFT JOIN wp_posts AS p2 ON CASE WHEN p1.post_parent = 0 THEN p1.ID ELSE p1.post_parent END = p2.ID
+LEFT JOIN wp_postmeta AS m1 ON p1.ID = m1.post_id AND m1.meta_key = "_price"
+LEFT JOIN wp_postmeta AS m2 ON p1.ID = m2.post_id AND m2.meta_key = "_stock"
+LEFT JOIN wp_postmeta AS m3 ON p1.ID = m3.post_id AND m3.meta_key = "_sku"
+LEFT JOIN wp_postmeta AS m4 ON p1.ID = m4.post_id AND m4.meta_key = "_price_circulations"
+LEFT JOIN wp_postmeta AS m5 ON p1.ID = m5.post_id AND m5.meta_key = "variation_image_gallery"
+WHERE p1.ID IN (${ids.map(() => "?").join(", ")})
+    AND p1.post_type IN ("product" , "product_variation")
+    AND p1.post_status = "publish"
 LIMIT ${ids.length};
 `;
 export interface GetProductsOptions {
