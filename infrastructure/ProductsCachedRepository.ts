@@ -1,4 +1,4 @@
-import pool from "./DbConnectionPool";
+import pool from "./MySQLPool";
 import { Attribute, AttributeTerm, Product, ProductAttribute, ProductsStatistic } from "schemas";
 import RepositoryBase from "./RepositoryBase";
 import productsCache, { ProductCacheItem } from "../services/ProductsCache";

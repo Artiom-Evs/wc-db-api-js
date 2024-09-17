@@ -1,5 +1,5 @@
 import { Attribute, VariationAttribute, Category, Image, Product, Variation, ProductPriceCirculation, PriceCirculations, MinimizedProduct } from "../schemas";
-import pool from "./DbConnectionPool";
+import pool from "./MySQLPool";
 import RepositoryBase from "./RepositoryBase";
 import { unserialize } from "php-serialize";
 import attributesRepository, { DBProductAttributeTerm, DBVariationAttribute } from "./AttributesRepository";

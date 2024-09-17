@@ -2,7 +2,7 @@ import { Product, Variation } from "schemas";
 import docStorage from "../services/DocStorage";
 import productsCache, { toCacheItem } from "../services/ProductsCache";
 import productsRepository from "../infrastructure/ProductsRepository";
-import pool from "../infrastructure/DbConnectionPool";
+import pool from "../infrastructure/MySQLPool";
 import { unserialize } from "php-serialize";
 import { randomInt } from "crypto";
 
