@@ -1,5 +1,5 @@
 import { PageInfo } from "../schemas";
-import pool from "./DbConnectionPool";
+import pool from "./MySQLPool";
 import RepositoryBase from "./RepositoryBase";
 
 const GET_ALL_QUERY = `

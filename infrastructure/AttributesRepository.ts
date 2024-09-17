@@ -1,5 +1,5 @@
 import RepositoryBase from "./RepositoryBase";
-import pool from "./DbConnectionPool";
+import pool from "./MySQLPool";
 import { Attribute, AttributeTerm, VariationAttribute } from "../schemas";
 
 const GET_ALL_QUERY = `

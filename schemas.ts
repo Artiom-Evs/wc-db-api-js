@@ -175,5 +175,6 @@ export const MinimizedProductSchema = z.object({
     stock_quantity: z.number().nullable(),
     price: z.number().nullable(),
     price_circulations: PriceCirculationsSchema.nullable(),
-    image: ImageSchema.nullable()
+    image: ImageSchema.nullable(),
+    attributes: z.array(VariationAttributeSchema)
 });

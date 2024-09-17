@@ -20,11 +20,11 @@ import { GetMenuItemsByMenuIdEndpoint } from "./endpoints/GetMenuItemsByMenuIdEn
 import { GetMenuItemsEndpoint } from "./endpoints/GetMenuItemsEndpoint";
 import { GetPostsEndpoint } from "./endpoints/GetPostsEndpoint";
 import { GetPostBySlugEndpoint } from "./endpoints/GetPostBySlugEndpoint";
-import synchronizationWorker from "./workers/CacheSynchronizationWorker";
 import { PostGetProductsCirculationsEndpoint } from "./endpoints/PostGetProductsCirculationsEndpoint";
 import { PostGetMinimizedProductsEndpoint } from "./endpoints/PostGetMinimizedProductsEndpoint";
+import synchronizationService from "./services/ProductsCacheSynchronizationService";
 
-synchronizationWorker.start();
+synchronizationService.initialize();
 
 const port = process.env.APP_HTTP_PORT ? parseInt(process.env.APP_HTTP_PORT) : null;
 if (!port)

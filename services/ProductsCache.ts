@@ -1,7 +1,7 @@
 import { Product } from "schemas";
 import ReadWriteLock from "rwlock";
 import { release } from "os";
-import pool from "../infrastructure/DbConnectionPool";
+import pool from "../infrastructure/MySQLPool";
 
 export interface ProductCacheItem {
     product: Product,
