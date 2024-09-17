@@ -1,37 +1,21 @@
-version: "3.1"
-
 services:
-  mongo:
-    image: mongo
+  redis-stack:
+    image: redis/redis-stack:latest
+    container_name: redis-stack
     restart: always
-    container_name: mongo
-    ports:
-      - 27017:27017
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    env_file:
+      - .env.local
     volumes:
-      - ./data:/data/db
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
+      - ./data:/data
 
-  mongo-express:
-    image: mongo-express
-    container_name: mongo-express
-    restart: always
-    ports:
-      - 8100:8081
-    expose:
-      - 8100
-    depends_on:
-      - mongo
-    environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: root
-      ME_CONFIG_MONGODB_ADMINPASSWORD: example
-      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
-      ME_CONFIG_BASICAUTH_USERNAME: test
-      ME_CONFIG_BASICAUTH_PASSWORD: password
-                                                               
-  wc-db-api:
-    container_name: wc-db-api
+  ewagifts-rest-api:
+    container_name: ewagifts-rest-api
     build:
       context: .
       dockerfile: Dockerfile
@@ -47,3 +31,6 @@ services:
     expose:
       - 8090
     env_file:
+      - .env.local
+    depends_on:
+      - redis-stack
