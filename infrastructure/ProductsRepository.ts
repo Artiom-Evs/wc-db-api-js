@@ -22,6 +22,84 @@ const GET_BY_SLUG_QUERY = `
 CALL GetProductBySlugV2(?);
 `;
 
+// arguments: [created, limit]
+const GET_PRODUCTS_UPDATES_QUERY = `
+SELECT created, product_id, parent_id, meta_key, meta_value
+FROM wp_products_updates_log
+WHERE created >= ?
+LIMIT ?;
+`;
+
+const CREATE_PRODUCTS_UPDATES_LOG_TABLE_QUERY = `
+CREATE TABLE IF NOT EXISTS wp_products_updates_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    product_id BIGINT NOT NULL,
+    parent_id BIGINT NOT NULL,
+    meta_key VARCHAR(255) NOT NULL,
+    meta_value TEXT NOT NULL
+);
+`;
+
+const CREATE_METADATA_TRIGGERS_ERRORS_LOG = `
+CREATE TABLE IF NOT EXISTS wp_postmeta_triggers_errors_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    error_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    error_message TEXT NOT NULL,
+    post_id BIGINT
+);
+`;
+
+const CREATE_PRODUCTS_METADATE_AFTER_INSERT_TRIGGER_QUERY = `
+CREATE TRIGGER IF NOT EXISTS wp_postmeta_after_insert
+AFTER INSERT ON wp_postmeta FOR EACH ROW 
+BEGIN 
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        INSERT INTO wp_postmeta_triggers_errors_log (error_message, post_id)
+        VALUES ('Error in trigger wp_postmeta_after_insert: Unknown error', NEW.post_id);
+    END;
+
+    IF NEW.meta_key = '_price' OR NEW.meta_key = '_regular_price' OR NEW.meta_key = '_stock' THEN
+        INSERT INTO wp_products_updates_log (product_id, meta_key, meta_value, parent_id)
+        SELECT NEW.post_id,
+            NEW.meta_key,
+            NEW.meta_value,
+            (
+                CASE WHEN p1.post_parent != 0 THEN p1.post_parent ELSE NEW.post_id END
+            ) AS parent_id
+        FROM wp_posts AS p1
+        WHERE p1.ID = NEW.post_id AND p1.post_type IN ("product", "product_variation")
+        LIMIT 1;
+    END IF;
+END
+`;
+
+const CREATE_PRODUCTS_METADATE_AFTER_UPDATE_TRIGGER_QUERY = `
+CREATE TRIGGER IF NOT EXISTS wp_postmeta_after_update
+AFTER UPDATE ON wp_postmeta FOR EACH ROW 
+BEGIN 
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        INSERT INTO wp_postmeta_triggers_errors_log (error_message, post_id)
+        VALUES ('Error in trigger wp_postmeta_after_update: Unknown error', NEW.post_id);
+    END;
+
+    IF NEW.meta_key = '_price' OR NEW.meta_key = '_regular_price' OR NEW.meta_key = '_stock' THEN
+        INSERT INTO wp_products_updates_log (product_id, meta_key, meta_value, parent_id)
+        SELECT NEW.post_id,
+            NEW.meta_key,
+            NEW.meta_value,
+            (
+                CASE WHEN p1.post_parent != 0 THEN p1.post_parent ELSE NEW.post_id END
+            ) AS parent_id
+        FROM wp_posts AS p1
+        WHERE p1.ID = NEW.post_id AND p1.post_type IN ("product", "product_variation")
+        LIMIT 1;
+    END IF;
+END
+`;
+
 const createGetProductsByIdsQuery = (ids: number[]) => `
 SELECT 
     ID AS id,
@@ -159,6 +237,7 @@ WHERE p1.ID IN (${ids.map(() => "?").join(", ")})
 >>>>>>> redis-cache
 LIMIT ${ids.length};
 `;
+
 export interface GetProductsOptions {
     page?: number,
     per_page?: number,
@@ -178,6 +257,14 @@ export interface ProductsStatistic {
     max_price: number
 }
 
+export interface DbProductUpdate {
+    created: string;
+    product_id: number;
+    parent_id: number;
+    meta_key: string;
+    meta_value: string;
+}
+
 interface DbProductOrVariationPriceCirculation {
     product_or_variation_id: number,
     stock_quantity: number,
@@ -186,6 +273,13 @@ interface DbProductOrVariationPriceCirculation {
 }
 
 class ProductsRepository extends RepositoryBase {
+    public async initializeProductsUpdatesLog(): Promise<void> {
+        await this._pool.execute(CREATE_PRODUCTS_UPDATES_LOG_TABLE_QUERY);
+        await this._pool.execute(CREATE_METADATA_TRIGGERS_ERRORS_LOG);
+        await this._pool.execute(CREATE_PRODUCTS_METADATE_AFTER_INSERT_TRIGGER_QUERY);
+        await this._pool.execute(CREATE_PRODUCTS_METADATE_AFTER_UPDATE_TRIGGER_QUERY);
+    }
+
     public async getProductsStatistic({
         min_price = -1,
         max_price = -1,
@@ -530,6 +624,15 @@ class ProductsRepository extends RepositoryBase {
         });
 
         return rows as DbProductOrVariationPriceCirculation[];
+    }
+
+    public async getProductsUpdates(startDate: Date, limit: number): Promise<DbProductUpdate[]> {
+        const [rows] = await this._pool.execute(GET_PRODUCTS_UPDATES_QUERY, [
+            startDate.toISOString(),
+            limit]);
+        const productsUpdates = rows as DbProductUpdate[];
+
+        return productsUpdates;
     }
 
     private initProductAttributes(product: Product, globalAttributes: Attribute[], attributesTerms: DBProductAttributeTerm[]): void {
