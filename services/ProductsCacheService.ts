@@ -149,6 +149,34 @@ class ProductsCacheService {
         return result.total;
     }
 
+    public async searchProducts(search: string, page: number = 1, perPage: number = 100): Promise<Product[]> {
+        // the minimum word length for wildcard search with default Redis settings is 2 characters
+        if (!search || search.length < 2)
+            return [];
+
+        const escapedSearch = escapeParam(search);
+        const query = `@sku|name:'*${escapedSearch}*'`;
+        const options = { LIMIT: { from: perPage * (page - 1), size: perPage } };
+        const result = await redis.ft.search(INDEX_NAME, query, options);
+        const products = result.documents.map(d => d.value) as any as Product[];
+
+        return products;
+    }
+
+    public async getSearchStatistic(search: string): Promise<ProductsStatistic> {
+        // the minimum word length for wildcard search with default Redis settings is 2 characters
+        if (!search || search.length < 2)
+            return { products_count: 0 };
+
+        const escapedSearch = escapeParam(search);
+        const query = `@sku|name:'*${escapedSearch}*'`;
+        const options = { RETURN: ["id"] };
+        const result = await redis.ft.search(INDEX_NAME, query, options);
+        const products_count = result.total;
+
+        return { products_count };
+    }
+
     private buildRedisearchQuery(options: GetCachedProductsOptions): string {
         const queryFilters: string[] = [
             options.category ? `@categories:{${escapeParam(options.category)}}` : "",

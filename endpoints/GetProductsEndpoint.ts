@@ -43,6 +43,11 @@ export const GetProductsEndpoint = defaultEndpointsFactory.build({
             const products = await productsRepository.GetBySlugs(input.slugs);
             return { statistic: null, items: products as any };
         }
+        else if (input.search) {
+            const products = await productsCache.searchProducts(input.search);
+            const statistic = await productsCache.getSearchStatistic(input.search);
+            return { statistic, items: products as any };
+        }
         
         const products =await productsCache.getProducts(input);
         const statistic = await productsCache.getProductsStatistic(input);
