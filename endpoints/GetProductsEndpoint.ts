@@ -1,19 +1,18 @@
 import { z } from "zod";
 import { defaultEndpointsFactory } from "express-zod-api";
 import { ProductSchema, ProductsStatisticSchema } from "../schemas";
-import productsRepository from "../infrastructure/ProductsRepository";
 import productsCache from "../services/ProductsCacheService";
 
-export type GetProductsQuery = z.infer<typeof GetProductsQuerySchema >;
+export type GetProductsQuery = z.infer<typeof GetProductsQuerySchema>;
 export const GetProductsQuerySchema = z.object({
     page: z.string().transform((s) => parseInt(s)).optional(),
     per_page: z.string().transform((s) => parseInt(s)).optional(),
-    order_by: z.enum([ "date", "price", "quantity" ]).optional(),
-    order: z.enum([ "desc", "asc" ]).optional(),
+    order_by: z.enum(["date", "price", "quantity"]).optional(),
+    order: z.enum(["desc", "asc"]).optional(),
     min_price: z.string().transform((s) => parseFloat(s)).optional(),
     max_price: z.string().transform((s) => parseFloat(s)).optional(),
     category: z.string().optional().transform(s => s?.toLowerCase() ?? s),
-    pa_supplier: z.string().optional().transform<string[] | undefined>(s => !s? undefined : s.split(",").map(s => s.trim().toLowerCase())),
+    pa_supplier: z.string().optional().transform<string[] | undefined>(s => !s ? undefined : s.split(",").map(s => s.trim().toLowerCase())),
     pa_color: z.string().optional().transform<string[] | undefined>(s => !s ? undefined : s.split(",").map(s => s.trim().toLowerCase())),
     pa_base_color: z.string().optional().transform<string[] | undefined>(s => !s ? undefined : s.split(",").map(s => s.trim().toLowerCase())),
     pa_size: z.string().optional().transform(s => !s ? undefined : s.split(",").map(s => s.trim().toLowerCase())),
@@ -36,11 +35,11 @@ export const GetProductsEndpoint = defaultEndpointsFactory.build({
         logger.debug("Requested parameters:", input);
 
         if (input.include && Array.isArray(input.include)) {
-            const products = await productsRepository.GetByIds(input.include);
+            const products = await productsCache.getProductsByIds(input.include);
             return { statistic: null, items: products as any };
         }
         else if (input.slugs && Array.isArray(input.slugs)) {
-            const products = await productsRepository.GetBySlugs(input.slugs);
+            const products = await productsCache.getProductsBySlugs(input.slugs);
             return { statistic: null, items: products as any };
         }
         else if (input.search) {
@@ -48,8 +47,8 @@ export const GetProductsEndpoint = defaultEndpointsFactory.build({
             const statistic = await productsCache.getSearchStatistic(input.search);
             return { statistic, items: products as any };
         }
-        
-        const products =await productsCache.getProducts(input);
+
+        const products = await productsCache.getProducts(input);
         const statistic = await productsCache.getProductsStatistic(input);
 
         // the products variable is converted to type any to avoid a type mismatch error. 

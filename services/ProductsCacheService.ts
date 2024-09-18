@@ -149,6 +149,40 @@ class ProductsCacheService {
         return result.total;
     }
 
+    public async getProductsByIds(productIds: number[]): Promise<Product[]> {
+        if (productIds.length === 0)
+            return [];
+
+        const query = "(    " + productIds.map(id => `@id:[${id} ${id}]`).join(" | ") + ")";
+        const options = { LIMIT: { from: 0, size: productIds.length } };
+        const result = await redis.ft.search(INDEX_NAME, query, options);
+        const products = result.documents.map(d => d.value) as any as Product[];
+
+        return products;
+    }
+
+    public async getProductsBySlugs(slugs: string[]): Promise<Product[]> {
+        if (slugs.length === 0)
+            return [];
+
+        const slugOptions = slugs.map(s => escapeParam(s)).join("|");
+        const query = `@slug:{${slugOptions}}`;
+        const options = { LIMIT: { from: 0, size: slugs.length } };
+        const result = await redis.ft.search(INDEX_NAME, query, options);
+        const products = result.documents.map(d => d.value) as any as Product[];
+
+        return products;
+    }
+
+    public async getProductBySlug(slug: string): Promise<Product | null> {
+        const query = `@slug:{${escapeParam(slug)}}`;
+        const options = { LIMIT: { from: 0, size: 1 } };
+        const result = await redis.ft.search(INDEX_NAME, query, options);
+        const product = result.documents[0]?.value as any as Product ?? null;
+
+        return product;
+    }
+
     public async searchProducts(search: string, page: number = 1, perPage: number = 100): Promise<Product[]> {
         // the minimum word length for wildcard search with default Redis settings is 2 characters
         if (!search || search.length < 2)
