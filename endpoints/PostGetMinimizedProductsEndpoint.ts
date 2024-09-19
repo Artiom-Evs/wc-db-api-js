@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { defaultEndpointsFactory } from "express-zod-api";
 import { MinimizedProduct, MinimizedProductSchema } from "../schemas";
-import productsRepository from "../infrastructure/ProductsRepository";
+import productsCache from "../services/ProductsCacheService";
 
 export const PostGetMinimizedProductsEndpoint = defaultEndpointsFactory.build({
     method: "post",
@@ -17,17 +17,9 @@ export const PostGetMinimizedProductsEndpoint = defaultEndpointsFactory.build({
     handler: async ({ input, logger }) => {
         const productIds = input.products.filter(p => !p.variation_id).map(p  => p.product_id);
         const variationIds = input.products.filter(p => p.variation_id).map(p  => p.variation_id ?? 0);
+        
+        const minimizedProducts = await productsCache.getMinimizedProducts(input.products)
 
-        const minimizedProducts = await productsRepository.getMinimized(productIds, variationIds);
-
-        const sortedMinimizedProducts: MinimizedProduct[] = [];
-        input.products.forEach(p => {
-            const id = p.variation_id && p.variation_id !== 0 ? p.variation_id : p.product_id;
-            const mp = minimizedProducts.find(mp => mp.id === id);
-            if (mp)
-                sortedMinimizedProducts.push(mp);
-        });
-
-        return { items: sortedMinimizedProducts };
+        return { items: minimizedProducts };
     }
 });

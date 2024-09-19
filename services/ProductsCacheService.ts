@@ -1,5 +1,5 @@
 import redis from "../infrastructure/RedisConnection";
-import { Product, ProductAttribute, ProductsStatistic } from "../schemas";
+import { MinimizedProduct, Product, ProductAttribute, ProductsStatistic, VariationAttribute } from "../schemas";
 import { SchemaFieldTypes, SearchOptions } from "redis";
 
 const INDEX_NAME = "idx:products";
@@ -183,6 +183,15 @@ class ProductsCacheService {
         return product;
     }
 
+    public async getProductById(id: number): Promise<Product | null> {
+        const query = `@id:[${id} ${id}]`;
+        const options = { LIMIT: { from: 0, size: 1 } };
+        const result = await redis.ft.search(INDEX_NAME, query, options);
+        const product = result.documents[0]?.value as any as Product ?? null;
+
+        return product;
+    }
+
     public async searchProducts(search: string, page: number = 1, perPage: number = 100): Promise<Product[]> {
         // the minimum word length for wildcard search with default Redis settings is 2 characters
         if (!search || search.length < 2)
@@ -209,6 +218,63 @@ class ProductsCacheService {
         const products_count = result.total;
 
         return { products_count };
+    }
+
+    public async getMinimizedProducts(items: { product_id: number, variation_id?: number }[]): Promise<MinimizedProduct[]> {
+        if (items.length === 0)
+            return [];
+
+        const tasks = items.map(async (item) => {
+            const product = await this.getProductById(item.product_id);
+
+            if (!product)
+                return null;
+
+            const variation = product.variations.find(v => v.id === item.variation_id);
+
+            if (variation) {
+                return {
+                    id: variation.id,
+                    parent_id: product.id,
+                    sku: variation.sku,
+                    slug: variation.slug,
+                    name: variation.name,
+                    stock_quantity: variation.stock_quantity,
+                    price: variation.price,
+                    price_circulations: variation.price_circulations,
+                    image: variation.images[0],
+                    attributes: variation.attributes
+                } as MinimizedProduct;
+            }
+            else {
+                const attributes: VariationAttribute[] = product.default_attributes.length > 0
+                    ? product.default_attributes
+                    : product.attributes.map(a => ({
+                        id: a.id,
+                        name: a.name,
+                        slug: a.slug,
+                        option: a.options[0].slug
+                    }));
+
+                return {
+                    id: product.id,
+                    parent_id: 0,
+                    name: product.name,
+                    slug: product.slug,
+                    sku: product.sku,
+                    stock_quantity: product.stock_quantity,
+                    price: product.price,
+                    price_circulations: product.price_circulations,
+                    image: product.images[0],
+                    attributes
+                } as MinimizedProduct;
+            }
+        });
+
+        const results = await Promise.all(tasks);
+        const minimizedProducts = results.filter(p => p !== null) as MinimizedProduct[];
+        
+        return minimizedProducts;
     }
 
     private buildRedisearchQuery(options: GetCachedProductsOptions): string {

@@ -6,6 +6,7 @@ import attributesRepository, { DBProductAttributeTerm, DBVariationAttribute } fr
 import categoriesRepository from "./CategoriesRepository";
 import imagesRepository, { DBImage, ImageSizes } from "./ImagesRepository";
 
+// parameters: [limit, offset]
 const GET_ALL_QUERY = `
 SELECT 
     ID AS id, 
@@ -33,12 +34,54 @@ ORDER BY ID
 LIMIT ? OFFSET ?;
 `;
 
+// parameters: [productId]
 const GET_BY_ID_QUERY = `
-CALL GetProductByIDV2(?);
+SELECT 
+    ID AS id, 
+    post_title AS name, 
+    post_name AS slug, 
+    post_content AS description, 
+    post_date AS created, 
+    post_modified AS modified,
+    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
+    CAST(m2.meta_value AS UNSIGNED) AS stock_quantity,
+    m3.meta_value AS sku,
+    m4.meta_value AS attributes,
+    m5.meta_value AS default_attributes,
+    m6.meta_value AS price_circulations
+FROM wp_posts
+LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
+LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
+LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
+LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_product_attributes"
+LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "_default_attributes"
+LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key = "_price_circulations"
+WHERE ID = ? AND post_type = "product";
 `;
 
+// marameters: [slug]
 const GET_BY_SLUG_QUERY = `
-CALL GetProductBySlugV2(?);
+SELECT 
+    ID AS id, 
+    post_title AS name, 
+    post_name AS slug, 
+    post_content AS description, 
+    post_date AS created, 
+    post_modified AS modified,
+    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
+    CAST(m2.meta_value AS UNSIGNED) AS stock_quantity,
+    m3.meta_value AS sku,
+    m4.meta_value AS attributes,
+    m5.meta_value AS default_attributes,
+    m6.meta_value AS price_circulations
+FROM wp_posts
+LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
+LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
+LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
+LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_product_attributes"
+LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "_default_attributes"
+LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key = "_price_circulations"
+WHERE post_name = ? AND post_type = "product";
 `;
 
 // arguments: [created, limit]
@@ -146,33 +189,6 @@ WHERE ID IN (${ids.map(() => "?").join(", ")})
 LIMIT ${ids.length};
 `;
 
-const createGetProductsBySlugsQuery = (slugs: string[]) => `
-SELECT 
-    ID AS id,
-    post_title AS name, 
-    post_name AS slug, 
-    post_content AS description, 
-    post_date AS created, 
-    post_modified AS modified, 
-    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
-    CAST(m2.meta_value AS UNSIGNED) AS stock_quantity,
-    m3.meta_value AS sku,
-    m4.meta_value AS attributes,
-    m5.meta_value AS default_attributes,
-    m6.meta_value AS price_circulations
-FROM wp_posts
-LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
-LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
-LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
-LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_product_attributes"
-LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "_default_attributes"
-LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key = "_price_circulations"
-WHERE post_type = "product" 
-    AND post_status = "publish"
-    AND post_name IN (${slugs.map(() => "?").join(", ")})
-LIMIT ${slugs.length};
-`;
-
 const createGetProductsVariationsQuery = (ids: number[]) => `
 SELECT 
     ID AS id, 
@@ -210,71 +226,6 @@ LEFT JOIN wp_postmeta AS pa_stock ON pm.post_id = pa_stock.post_id AND pa_stock.
 LEFT JOIN wp_postmeta AS pa_price ON pm.post_id = pa_price.post_id AND pa_price.meta_key = "_price"
 WHERE pm.meta_key = "_price_circulations" AND pm.post_id IN (${productOrVariationIds.map(() => "?").join(", ")});
 `;
-
-const createGetMinimizedProductsByIdsQuery = (ids: number[]) => `
-SELECT 
-<<<<<<< HEAD
-    ID AS id,
-    post_parent AS parent_id,
-    post_name AS slug, 
-    post_title AS name, 
-=======
-    p1.ID AS id,
-    p1.post_parent AS parent_id,
-    p2.post_name AS slug, 
-    p1.post_title AS name, 
->>>>>>> redis-cache
-    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
-    CAST(m2.meta_value AS UNSIGNED) AS stock_quantity,
-    m3.meta_value AS sku,
-    m4.meta_value AS price_circulations,
-<<<<<<< HEAD
-    m5.meta_value AS variation_image_gallery
-FROM wp_posts
-LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
-LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
-LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
-LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_price_circulations"
-LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "variation_image_gallery"
-WHERE ID IN (${ids.map(() => "?").join(", ")})
-    AND post_type IN ("product" , "product_variation")
-    AND post_status = "publish"
-=======
-    m5.meta_value AS variation_image_gallery,
-    m6.meta_value AS attributes
-FROM wp_posts AS p1
-LEFT JOIN wp_posts AS p2 ON CASE WHEN p1.post_parent = 0 THEN p1.ID ELSE p1.post_parent END = p2.ID
-LEFT JOIN wp_postmeta AS m1 ON p1.ID = m1.post_id AND m1.meta_key = "_price"
-LEFT JOIN wp_postmeta AS m2 ON p1.ID = m2.post_id AND m2.meta_key = "_stock"
-LEFT JOIN wp_postmeta AS m3 ON p1.ID = m3.post_id AND m3.meta_key = "_sku"
-LEFT JOIN wp_postmeta AS m4 ON p1.ID = m4.post_id AND m4.meta_key = "_price_circulations"
-LEFT JOIN wp_postmeta AS m5 ON p1.ID = m5.post_id AND m5.meta_key = "variation_image_gallery"
-LEFT JOIN wp_postmeta AS m6 ON CASE WHEN p1.post_parent = 0 THEN p1.ID ELSE p1.post_parent END  = m6.post_id AND m6.meta_key = "_product_attributes"
-WHERE p1.ID IN (${ids.map(() => "?").join(", ")})
-    AND p1.post_type IN ("product" , "product_variation")
-    AND p1.post_status = "publish"
->>>>>>> redis-cache
-LIMIT ${ids.length};
-`;
-
-export interface GetProductsOptions {
-    page?: number,
-    per_page?: number,
-    order_by?: "date" | "price" | "quantity" | "name",
-    order?: "asc" | "desc",
-    min_price?: number,
-    max_price?: number,
-    category?: string,
-    attribute?: string,
-    attribute_term?: string,
-    search?: string
-}
-
-export interface ProductsStatistic {
-    products_count: number,
-    min_price: number,
-    max_price: number
-}
 
 export interface DbProductUpdate {
     created: string;
@@ -389,95 +340,6 @@ class ProductsRepository extends RepositoryBase {
         return products;
     }
 
-    public async GetBySlugs(slugs: string[]): Promise<Product[]> {
-        if (slugs.length === 0)
-            return [];
-
-        const query = createGetProductsBySlugsQuery(slugs);
-        const [rows] = await this._pool.execute<any>(query, slugs,);
-
-        const products = rows as Product[];
-        const productIds = products.map(p => p.id);
-        const variations = await this.getProductsVariations(productIds);
-        const variationIds = variations.map(v => v.id);
-        const images = await imagesRepository.getProductsImages([...productIds, ...variationIds], "medium");
-        const variationsImages = await this.getVariationsImages(variations, "medium");
-
-        const globalAttributes: Attribute[] = await attributesRepository.getAll();
-        const attributesTerms = await attributesRepository.getProductsAttributeTerms(productIds);
-        const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
-        const categories = await categoriesRepository.getProductsCategories(productIds);
-
-        products.forEach(product => {
-            this.initProductAttributes(product, globalAttributes, attributesTerms);
-            this.initProductDefaultAttributes(product, globalAttributes, attributesTerms);
-
-            product.categories = categories.filter(c => c.object_id === product.id) as Category[];
-            product.images = images.filter(i => i.parent_id === product.id) as Image[];
-            product.variations = variations.filter(v => v.parent_id === product.id);
-
-            product.type = product.variations.length === 0 ? "simple" : "variable";
-            product.price = product.price != null ? parseFloat(product.price as any) : null;
-            product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
-
-            if (product.price_circulations)
-                product.price_circulations = unserialize((product as any).price_circulations);
-
-            product.variations.forEach(variation => {
-                variation.price = variation.price != null ? parseFloat(variation.price as any) : null;
-                variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
-                variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
-
-                this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
-            });
-        });
-
-        return products;
-    }
-
-    public async getMinimized(productIds: number[], variationIds: number[]): Promise<MinimizedProduct[]> {
-        if (productIds.length === 0 && variationIds.length === 0)
-            return [];
-
-        const allIds = [...productIds, ...variationIds];
-        const query = createGetMinimizedProductsByIdsQuery(allIds);
-        const [rows] = await this._pool.execute<any[]>(query, allIds);
-        const minimizedProducts = rows as MinimizedProduct[];
-        const allParentIds = minimizedProducts.map(p => p.parent_id ? p.parent_id : p.id);
-
-        const globalAttributes: Attribute[] = await attributesRepository.getAll();
-        const attributesTerms = await attributesRepository.getProductsAttributeTerms(allParentIds);
-        const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
-
-        console.debug("VARIATIONTERMS:", variationsAttributes);
-
-        const variationImageIds = rows
-            .filter(row => row.variation_image_gallery)
-            .map(row => parseInt((row.variation_image_gallery as string)?.split(",")?.[0] ?? "0"));
-        const productImages = await imagesRepository.getProductsImages([...productIds], "medium");
-        const variationImages = await imagesRepository.getImagesByIds(variationImageIds, "medium");
-
-        minimizedProducts.forEach(mp => {
-            if (mp.price_circulations)
-                mp.price_circulations = unserialize(mp.price_circulations as any);
-
-            mp.stock_quantity = parseInt(mp.stock_quantity as any) ?? null;
-            mp.price = parseFloat(mp.price as any) ?? null;
-
-            if (mp.parent_id === 0)
-                mp.image = productImages.find(i => i.parent_id === mp.id) ?? null;
-            else
-
-                mp.image = variationImages.find(i => ((mp as any).variation_image_gallery as string)?.startsWith(i.id.toString())) ?? null;
-
-            mp.image = variationImages.find(i => ((mp as any).variation_image_gallery as string)?.startsWith(i.id.toString())) ?? null;
-
-            this.initMinimizedProductAttributes(mp, globalAttributes, attributesTerms, variationsAttributes);
-        });
-
-        return minimizedProducts;
-    }
-
     public async getById(id: number): Promise<Product | null> {
         const [[productRows]] = await this._pool.execute<[any[]]>(GET_BY_ID_QUERY, [id]);
         const products = productRows as Product[];
@@ -491,49 +353,6 @@ class ProductsRepository extends RepositoryBase {
         const images = await imagesRepository.getProductsImages([id, ...variationIds], "large");
         const variationsImages = await this.getVariationsImages(variations, "large");
         const categories = await categoriesRepository.getProductsCategories([id]);
-
-        product.type = variations.length === 0 ? "simple" : "variable";
-        product.price = product.price != null ? parseFloat(product.price as any) : null;
-        product.stock_quantity = product.stock_quantity != null ? parseInt(product.stock_quantity as any) : null;
-
-        if (product.price_circulations)
-            product.price_circulations = unserialize((product as any).price_circulations);
-
-        const globalAttributes: Attribute[] = await attributesRepository.getAll();
-        const attributesTerms = await attributesRepository.getProductsAttributeTerms([product.id]);
-        const variationsAttributes = await attributesRepository.getVariationsAttributes(variationIds);
-
-        this.initProductAttributes(product, globalAttributes, attributesTerms);
-        this.initProductDefaultAttributes(product, globalAttributes, attributesTerms);
-
-        product.categories = categories as Category[];
-        product.images = images.filter(i => i.parent_id === product.id) as Image[];
-        product.variations = variations;
-
-        product.variations.forEach(variation => {
-            variation.price = variation.price != null ? parseFloat(variation.price as any) : null;
-            variation.stock_quantity = variation.stock_quantity != null ? parseInt(variation.stock_quantity as any) : null;
-            variation.images = variationsImages.filter(i => (variation as any).variation_image_gallery?.includes(i.id)) as Image[];
-
-            this.initVariationAttributes(variation, globalAttributes, variationsAttributes);
-        });
-
-        return product;
-    }
-
-    public async getBySlug(slug: string): Promise<Product | null> {
-        const [[productRows]] = await this._pool.execute<[any[]]>(GET_BY_SLUG_QUERY, [slug]);
-        const products = productRows as Product[];
-        const product = products && Array.isArray(products) && products.length > 0 ? products[0] : null;
-
-        if (!product)
-            return null;
-
-        const variations = await this.getProductsVariations([product.id]);
-        const variationIds = variations.map(v => v.id);
-        const images = await imagesRepository.getProductsImages([product.id, ...variationIds], "large");
-        const variationsImages = await this.getVariationsImages(variations, "large");
-        const categories = await categoriesRepository.getProductsCategories([product.id]);
 
         product.type = variations.length === 0 ? "simple" : "variable";
         product.price = product.price != null ? parseFloat(product.price as any) : null;
