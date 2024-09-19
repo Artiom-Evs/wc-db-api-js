@@ -2,6 +2,7 @@ import redis from "../infrastructure/RedisConnection";
 import productsCache from "./ProductsCacheService";
 import productsRepository from "../infrastructure/ProductsRepository";
 import cron from "node-cron";
+import { BuiltinLogger, createLogger } from "express-zod-api";
 
 const SYNCHRONIZATION_DAYLY_RELOAD_HOUR = parseInt(process.env.PRODUCTS_CACHE_SYNCHRONIZATION_DAYLY_RELOAD_HOUR ?? "") || 0;
 const SYNCHRONIZATION_DAYLY_RELOAD_MINUTE = parseInt(process.env.PRODUCTS_CACHE_SYNCHRONIZATION_DAYLY_RELOAD_MINUTE ?? "") || 0;
@@ -9,8 +10,13 @@ const SYNCHRONIZATION_FREQUANCY_MS = parseInt(process.env.PRODUCTS_CACHE_SYNCHRO
 const SYNCHRONIZATION_UPDATES_PROCESSING_LIMIT = 1000;
 
 export class ProductsCacheSynchronizationService {
+    private readonly _logger: BuiltinLogger;
     private _isInitialized: boolean = false;
     private _isSynchronizing: boolean = false;
+
+    constructor() {
+        this._logger = createLogger({ level: "info" });
+    }
 
     public get isInitialized(): boolean {
         return this._isInitialized;
@@ -18,27 +24,27 @@ export class ProductsCacheSynchronizationService {
 
     public async initialize(): Promise<void> {
         try {
-            console.log("Initializing products cache");
+            this._logger.info("Initializing products cache");
 
             await productsCache.initialize();
             await productsRepository.initializeProductsUpdatesLog();
             await this.reloadProductsCache();
 
-            console.log(`Daily products reloading timer started. Time: ${SYNCHRONIZATION_DAYLY_RELOAD_HOUR}:${SYNCHRONIZATION_DAYLY_RELOAD_MINUTE}`);
+            this._logger.info(`Daily products reloading timer started. Time: ${SYNCHRONIZATION_DAYLY_RELOAD_HOUR}:${SYNCHRONIZATION_DAYLY_RELOAD_MINUTE}`);
             cron.schedule(`${SYNCHRONIZATION_DAYLY_RELOAD_MINUTE} ${SYNCHRONIZATION_DAYLY_RELOAD_HOUR} * * *`, async () => {
                 this.reloadProductsCache();
             });
 
-            console.log("Product change tracking started. Synchronization frequency:", SYNCHRONIZATION_FREQUANCY_MS, "ms");
+            this._logger.info(`Product change tracking started. Synchronization frequency:" ${SYNCHRONIZATION_FREQUANCY_MS} ms`);
             cron.schedule(`*/${SYNCHRONIZATION_FREQUANCY_MS / 1000} * * * * *`, async () => {
                 this.synchronizeProductsCache();
             });
 
             this._isInitialized = true;
-            console.log("Products cache initialized");
+            this._logger.info("Products cache initialized");
         }
         catch (e: any) {
-            console.error("Error while initializing products cache", e);
+            this._logger.error("Error while initializing products cache", e);
             throw e;
         }
     }
@@ -47,7 +53,7 @@ export class ProductsCacheSynchronizationService {
         try {
             let page = 1;
 
-            console.log("Reloading products cache");
+            this._logger.info("Reloading products cache");
 
             while (true) {
                 const products = await productsRepository.getAll(page, 100);
@@ -59,15 +65,15 @@ export class ProductsCacheSynchronizationService {
                     productsCache.setProduct(product);
                 }
 
-                console.log(products.length, "products added to cache from page", page);
+                this._logger.info(`${products.length} products added to cache from page ${page}`);
                 page++;
             }
 
             const productsCount = await productsCache.getProductsCount();
-            console.log("Products cache reloaded. Count:", productsCount);
+            this._logger.info(`Products cache reloaded. Count: ${productsCount}`);
         }
         catch (e: any) {
-            console.error("Error while reloading products cache", e);
+            this._logger.error("Error while reloading products cache", e);
         }
     }
 
@@ -87,11 +93,11 @@ export class ProductsCacheSynchronizationService {
                 const products = await productsRepository.GetByIds(productIds);
 
                 await productsCache.setProducts(products);
-                console.log(productIds.length, "products updated in cache.");
+                this._logger.info(`${productIds.length} products updated in cache`);
             }
         }
         catch (e: any) {
-            console.error("Error while synchronizing products cache", e);
+            this._logger.error("Error while synchronizing products cache", e);
         }
         finally {
             this._isSynchronizing = false;
