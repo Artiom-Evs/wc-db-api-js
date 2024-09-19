@@ -24,10 +24,12 @@ export class ProductsCacheSynchronizationService {
             await productsRepository.initializeProductsUpdatesLog();
             await this.reloadProductsCache();
 
+            console.log(`Daily products reloading timer started. Time: ${SYNCHRONIZATION_DAYLY_RELOAD_HOUR}:${SYNCHRONIZATION_DAYLY_RELOAD_MINUTE}`);
             cron.schedule(`${SYNCHRONIZATION_DAYLY_RELOAD_MINUTE} ${SYNCHRONIZATION_DAYLY_RELOAD_HOUR} * * *`, async () => {
                 this.reloadProductsCache();
             });
 
+            console.log("Product change tracking started. Synchronization frequency:", SYNCHRONIZATION_FREQUANCY_MS, "ms");
             cron.schedule(`*/${SYNCHRONIZATION_FREQUANCY_MS / 1000} * * * * *`, async () => {
                 this.synchronizeProductsCache();
             });
@@ -48,10 +50,7 @@ export class ProductsCacheSynchronizationService {
             console.log("Reloading products cache");
 
             while (true) {
-                const products = await productsRepository.getAll({
-                    page,
-                    per_page: 100
-                });
+                const products = await productsRepository.getAll(page, 100);
 
                 if (products.length === 0)
                     break;

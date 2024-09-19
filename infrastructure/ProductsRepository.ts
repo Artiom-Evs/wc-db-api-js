@@ -7,11 +7,30 @@ import categoriesRepository from "./CategoriesRepository";
 import imagesRepository, { DBImage, ImageSizes } from "./ImagesRepository";
 
 const GET_ALL_QUERY = `
-CALL GetProductsV3(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-`;
-
-const GET_STATISTIC_QUERY = `
-CALL GetProductsStatisticV2(?, ?, ?, ?, ?, ?);
+SELECT 
+    ID AS id, 
+    post_title AS name, 
+    post_name AS slug, 
+    post_content AS description, 
+    post_date AS created, 
+    post_modified AS modified, 
+    CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
+    CAST(m2.meta_value AS UNSIGNED) AS stock_quantity,
+    m3.meta_value AS sku,
+    m4.meta_value AS attributes,
+    m5.meta_value AS default_attributes,
+    m6.meta_value AS price_circulations
+FROM wp_posts
+LEFT JOIN wp_postmeta AS m1 ON wp_posts.ID = m1.post_id AND m1.meta_key = "_price"
+LEFT JOIN wp_postmeta AS m2 ON wp_posts.ID = m2.post_id AND m2.meta_key = "_stock"
+LEFT JOIN wp_postmeta AS m3 ON wp_posts.ID = m3.post_id AND m3.meta_key = "_sku"
+LEFT JOIN wp_postmeta AS m4 ON wp_posts.ID = m4.post_id AND m4.meta_key = "_product_attributes"
+LEFT JOIN wp_postmeta AS m5 ON wp_posts.ID = m5.post_id AND m5.meta_key = "_default_attributes"
+LEFT JOIN wp_postmeta AS m6 ON wp_posts.ID = m6.post_id AND m6.meta_key = "_price_circulations"
+WHERE post_type = "product" 
+    AND post_status = "publish"
+ORDER BY ID
+LIMIT ? OFFSET ?;
 `;
 
 const GET_BY_ID_QUERY = `
@@ -51,28 +70,28 @@ CREATE TABLE IF NOT EXISTS wp_postmeta_triggers_errors_log (
 `;
 
 const CREATE_PRODUCTS_METADATE_AFTER_INSERT_TRIGGER_QUERY = `
-CREATE TRIGGER IF NOT EXISTS wp_postmeta_after_insert
-AFTER INSERT ON wp_postmeta FOR EACH ROW 
-BEGIN 
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        INSERT INTO wp_postmeta_triggers_errors_log (error_message, post_id)
-        VALUES ('Error in trigger wp_postmeta_after_insert: Unknown error', NEW.post_id);
-    END;
+    CREATE TRIGGER IF NOT EXISTS wp_postmeta_after_insert
+    AFTER INSERT ON wp_postmeta FOR EACH ROW 
+    BEGIN 
+        DECLARE EXIT HANDLER FOR SQLEXCEPTION
+        BEGIN
+            INSERT INTO wp_postmeta_triggers_errors_log (error_message, post_id)
+            VALUES ('Error in trigger wp_postmeta_after_insert: Unknown error', NEW.post_id);
+        END;
 
-    IF NEW.meta_key = '_price' OR NEW.meta_key = '_regular_price' OR NEW.meta_key = '_stock' THEN
-        INSERT INTO wp_products_updates_log (product_id, meta_key, meta_value, parent_id)
-        SELECT NEW.post_id,
-            NEW.meta_key,
-            NEW.meta_value,
-            (
-                CASE WHEN p1.post_parent != 0 THEN p1.post_parent ELSE NEW.post_id END
-            ) AS parent_id
-        FROM wp_posts AS p1
-        WHERE p1.ID = NEW.post_id AND p1.post_type IN ("product", "product_variation")
-        LIMIT 1;
-    END IF;
-END
+        IF NEW.meta_key = '_price' OR NEW.meta_key = '_regular_price' OR NEW.meta_key = '_stock' THEN
+            INSERT INTO wp_products_updates_log (product_id, meta_key, meta_value, parent_id)
+            SELECT NEW.post_id,
+                NEW.meta_key,
+                NEW.meta_value,
+                (
+                    CASE WHEN p1.post_parent != 0 THEN p1.post_parent ELSE NEW.post_id END
+                ) AS parent_id
+            FROM wp_posts AS p1
+            WHERE p1.ID = NEW.post_id AND p1.post_type IN ("product", "product_variation")
+            LIMIT 1;
+        END IF;
+    END
 `;
 
 const CREATE_PRODUCTS_METADATE_AFTER_UPDATE_TRIGGER_QUERY = `
@@ -109,7 +128,7 @@ SELECT
     post_date AS created, 
     post_modified AS modified, 
     CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
-    CAST(m2.meta_value AS INT) AS stock_quantity,
+    CAST(m2.meta_value AS UNSIGNED) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS attributes,
     m5.meta_value AS default_attributes,
@@ -136,7 +155,7 @@ SELECT
     post_date AS created, 
     post_modified AS modified, 
     CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
-    CAST(m2.meta_value AS INT) AS stock_quantity,
+    CAST(m2.meta_value AS UNSIGNED) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS attributes,
     m5.meta_value AS default_attributes,
@@ -163,7 +182,7 @@ SELECT
     post_date AS created, 
     post_modified AS modified,
     CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
-    CAST(m2.meta_value AS INT) AS stock_quantity,
+    CAST(m2.meta_value AS UNSIGNED) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS variation_image_gallery,
     m5.meta_value AS description,
@@ -183,7 +202,7 @@ WHERE post_parent IN (${ids.map(() => "?").join(", ")})
 const createGetProductsOrVariationsPriceCirculationsQuery = (productOrVariationIds: number[]) => `
 SELECT 
     pm.post_id AS product_or_variation_id,
-    CAST(pa_stock.meta_value AS INT) AS stock_quantity,
+    CAST(pa_stock.meta_value AS UNSIGNED) AS stock_quantity,
     CAST(pa_price.meta_value AS DECIMAL(10, 2)) AS price,
     pm.meta_value AS price_circulations
 FROM wp_postmeta AS pm
@@ -206,7 +225,7 @@ SELECT
     p1.post_title AS name, 
 >>>>>>> redis-cache
     CAST(m1.meta_value AS DECIMAL(10, 2)) AS price,
-    CAST(m2.meta_value AS INT) AS stock_quantity,
+    CAST(m2.meta_value AS UNSIGNED) AS stock_quantity,
     m3.meta_value AS sku,
     m4.meta_value AS price_circulations,
 <<<<<<< HEAD
@@ -280,59 +299,10 @@ class ProductsRepository extends RepositoryBase {
         await this._pool.execute(CREATE_PRODUCTS_METADATE_AFTER_UPDATE_TRIGGER_QUERY);
     }
 
-    public async getProductsStatistic({
-        min_price = -1,
-        max_price = -1,
-        category = "",
-        attribute = "",
-        attribute_term = "",
-        search = ""
-    }): Promise<ProductsStatistic> {
-
-        const [[[result]]] = await this._pool.execute<[any[]]>(GET_STATISTIC_QUERY, [
-            min_price,
-            max_price,
-            category,
-            attribute,
-            attribute_term,
-            search
-        ]);
-
-        const statistic = result as ProductsStatistic;
-
-        // this parsing is required, because mysql2 returns min_price and max_price fields as a strings
-        statistic.min_price = parseFloat(statistic.min_price as any ?? "0");
-        statistic.max_price = parseFloat(statistic.max_price as any ?? "0");
-
-        return statistic;
-    }
-
-    public async getAll({
-        page = 1,
-        per_page = 100,
-        min_price = -1,
-        max_price = -1,
-        order_by = "quantity",
-        order = "desc",
-        category = "",
-        attribute = "",
-        attribute_term = "",
-        search = ""
-    }: GetProductsOptions): Promise<Product[]> {
-        if (attribute != "" && !attribute.startsWith("pa_"))
-            attribute = "pa_" + attribute;
-
-        const [[rows]] = await this._pool.execute<[any[]]>(GET_ALL_QUERY, [
-            per_page,
-            per_page * (page - 1),
-            min_price,
-            max_price,
-            order_by,
-            order,
-            category,
-            attribute,
-            attribute_term,
-            search
+    public async getAll(page: number, perPage: number): Promise<Product[]> {
+        const [rows] = await this._pool.execute(GET_ALL_QUERY, [
+            perPage,
+            perPage * (page - 1)
         ]);
 
         const products = rows as Product[];
