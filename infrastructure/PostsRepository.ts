@@ -47,7 +47,7 @@ class PostsRepository extends RepositoryBase {
         const [rows] = await this._pool.execute<any[]>(GET_ALL_QUERY, [options.per_page, options.per_page * (options.page - 1)]);
         const thumbnailIds = rows.map(r => r.thumbnail_id ?? 0);
         const posts = rows as Post[];
-        const images = await imagesRepository.getImagesByIds(thumbnailIds, "medium");
+        const images = await imagesRepository.getImagesByIds(thumbnailIds, "large");
         const postIds = posts.map(p => p.id);
         const categories = await categoriesRepository.getPostsCategories(postIds);
 
