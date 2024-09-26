@@ -1,3 +1,4 @@
+import { isNumber } from "util";
 import redis from "../infrastructure/RedisConnection";
 import { MinimizedProduct, Product, ProductAttribute, ProductsStatistic, VariationAttribute } from "../schemas";
 import { SchemaFieldTypes, SearchOptions } from "redis";
@@ -106,42 +107,43 @@ class ProductsCacheService {
             await this.setProduct(product);
     }
 
-    public async getProducts(options: GetCachedProductsOptions): Promise<Product[]> {
-        const query = this.buildRedisearchQuery(options);
-        const searchOptions = this.buildRedisearchOptions(options);
+    // getting products and statisting makes in one method to maximize performance
+    public async getProductsWithStatistic(options: GetCachedProductsOptions): Promise<[products: Product[], statistic: ProductsStatistic]> {
+        const productsQuery = this.buildRedisearchQuery(options);
+        const productsSearchOptions = this.buildRedisearchOptions(options);
 
-        const result = await redis.ft.search(INDEX_NAME, query, searchOptions);
-        const products = result.documents.map(d => d.value) as any as Product[];
+        const statisticQuery = this.buildRedisearchStatisticQuery(options);
+        const statisticSearchOptions = {
+            RETURN: ["$.price", "$.attributes"],
+            // to get all results
+            // 10000 is the maximum value for the LIMIT size with default configuration
+            LIMIT: { from: 0, size: 10000 }
+        };
 
-        return products;
-    }
+        const productsTask = redis.ft.search(INDEX_NAME, productsQuery, productsSearchOptions);
+        const statisticTask = redis.ft.search(INDEX_NAME, statisticQuery, statisticSearchOptions);
+        const [productsResult, statisticResult] = await Promise.all([productsTask, statisticTask]);
+        
+        const products = productsResult.documents.map(d => d.value) as any as Product[];
+        const products_count = productsResult.total;
 
-    public async getProductsStatistic(options: GetCachedProductsOptions): Promise<ProductsStatistic> {
-        const query = this.buildRedisearchQuery(options);
-        const result = await redis.ft.search(INDEX_NAME, query, {
-            RETURN: ["$.price", "$.attributes"]
-        });
-        const items = result.documents.map(d => d.value) as any as StatisticResultItem[];
+        const statisticItems = statisticResult.documents.map(d => d.value) as any as StatisticResultItem[];
 
         // when RETURN option used, then selected fields are returned as strings
-        items.forEach(item => {
+        statisticItems.forEach(item => {
             item.price = parseFloat(item["$.price"]);
             item.attributes = JSON.parse(item["$.attributes"]);
         });
 
-        const filteredByPrice = items.filter(this.filterByPrice(options));
-        const filteredByAttributes = items.filter(this.filterByAttributes(options));
+        const filteredByPrice = statisticItems.filter(this.filterByPrice(options));
+        const filteredByAttributes = statisticItems.filter(this.filterByAttributes(options));
 
-        const products_count = result.total;
         const attributes = this.getAttributesStatistic(filteredByPrice);
         const [min_price, max_price] = this.getMinAndMaxPrice(filteredByAttributes);
 
-        return {
-            products_count,
-            min_price,
-            max_price,
-            attributes
-        };
+        const statistic = { products_count, min_price, max_price, attributes };
+
+        return [products, statistic];
     }
 
     public async getProductsCount(): Promise<number> {
@@ -190,34 +192,6 @@ class ProductsCacheService {
         const product = result.documents[0]?.value as any as Product ?? null;
 
         return product;
-    }
-
-    public async searchProducts(search: string, page: number = 1, perPage: number = 100): Promise<Product[]> {
-        // the minimum word length for wildcard search with default Redis settings is 2 characters
-        if (!search || search.length < 2)
-            return [];
-
-        const escapedSearch = escapeParam(search);
-        const query = `@sku|name:'*${escapedSearch}*'`;
-        const options = { LIMIT: { from: perPage * (page - 1), size: perPage } };
-        const result = await redis.ft.search(INDEX_NAME, query, options);
-        const products = result.documents.map(d => d.value) as any as Product[];
-
-        return products;
-    }
-
-    public async getSearchStatistic(search: string): Promise<ProductsStatistic> {
-        // the minimum word length for wildcard search with default Redis settings is 2 characters
-        if (!search || search.length < 2)
-            return { products_count: 0 };
-
-        const escapedSearch = escapeParam(search);
-        const query = `@sku|name:'*${escapedSearch}*'`;
-        const options = { RETURN: ["id"] };
-        const result = await redis.ft.search(INDEX_NAME, query, options);
-        const products_count = result.total;
-
-        return { products_count };
     }
 
     public async getMinimizedProducts(items: { product_id: number, variation_id?: number }[]): Promise<MinimizedProduct[]> {
@@ -273,21 +247,34 @@ class ProductsCacheService {
 
         const results = await Promise.all(tasks);
         const minimizedProducts = results.filter(p => p !== null) as MinimizedProduct[];
-        
+
         return minimizedProducts;
     }
 
     private buildRedisearchQuery(options: GetCachedProductsOptions): string {
         const queryFilters: string[] = [
             options.category ? `@categories:{${escapeParam(options.category)}}` : "",
-            options.min_price || options.max_price ? `@price:[${options.min_price ?? "-inf"} ${options.max_price ?? "+inf"}]` : "",
+            isNumber(options.min_price) || isNumber(options.max_price) ? `@price:[${options.min_price ?? "-inf"} ${options.max_price ?? "+inf"}]` : "",
             options.pa_supplier ? `(@attributes:{supplier} and @attributes_options:{${options.pa_supplier.map(o => escapeParam(o)).join("|")}})` : "",
             options.pa_color ? `(@attributes:{color} and @attributes_options:{${options.pa_color.map(o => escapeParam(o)).join("|")}})` : "",
             options.pa_base_color ? `(@attributes:{base_color} and @attributes_options:{${options.pa_base_color.map(o => escapeParam(o)).join("|")}})` : "",
-            options.pa_size ? `(@attributes:{size} and @attributes_options:{${options.pa_size.map(o => escapeParam(o)).join("|")}})` : ""
+            options.pa_size ? `(@attributes:{size} and @attributes_options:{${options.pa_size.map(o => escapeParam(o)).join("|")}})` : "",
+            (options.search && options.search.length >= 2) ? `@sku|name:'*${escapeParam(options.search)}*'` : ""
         ];
 
-        const query = queryFilters.filter(f => f).join(" ") || "*";
+        const query = queryFilters.filter(f => f).join(" AND ") || "*";
+
+        return query;
+    }
+    
+    // use only category and search filters
+    private buildRedisearchStatisticQuery(options: GetCachedProductsOptions): string {
+        const queryFilters: string[] = [
+            options.category ? `@categories:{${escapeParam(options.category)}}` : "",
+            (options.search && options.search.length >= 2) ? `@sku|name:'*${escapeParam(options.search)}*'` : ""
+        ];
+
+        const query = queryFilters.filter(f => f).join(" AND ") || "*";
 
         return query;
     }

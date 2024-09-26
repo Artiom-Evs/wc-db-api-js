@@ -16,7 +16,7 @@ export const GetProductsQuerySchema = z.object({
     pa_color: z.string().optional().transform<string[] | undefined>(s => !s ? undefined : s.split(",").map(s => s.trim().toLowerCase())),
     pa_base_color: z.string().optional().transform<string[] | undefined>(s => !s ? undefined : s.split(",").map(s => s.trim().toLowerCase())),
     pa_size: z.string().optional().transform(s => !s ? undefined : s.split(",").map(s => s.trim().toLowerCase())),
-    search: z.string().optional().transform(s => !s ? undefined : s.toLowerCase()),
+    search: z.string().optional().transform(s => !s ? undefined : s.toLowerCase().trim()),
     include: z.string().optional().transform(v => v?.split(",").map(s => parseInt(s)).filter(n => n)),
     slugs: z.string().optional().transform(v => v?.split(",").map(s => s.trim().toLowerCase()).filter(n => n))
 });
@@ -42,17 +42,9 @@ export const GetProductsEndpoint = defaultEndpointsFactory.build({
             const products = await productsCache.getProductsBySlugs(input.slugs);
             return { statistic: null, items: products as any };
         }
-        else if (input.search) {
-            const products = await productsCache.searchProducts(input.search);
-            const statistic = await productsCache.getSearchStatistic(input.search);
-            return { statistic, items: products as any };
-        }
+        
+        const [products, statistic] = await productsCache.getProductsWithStatistic(input);
 
-        const products = await productsCache.getProducts(input);
-        const statistic = await productsCache.getProductsStatistic(input);
-
-        // the products variable is converted to type any to avoid a type mismatch error. 
-        // The ProductSchema and VariationSchema ZOD schemas for the created and modified fields use a ZOD type dateOut(), which is converted to a string type in the output type, but the input type is still to require value of a Date type before conversion.
-        return { statistic, items: products as any };
+        return { statistic, items: products };
     },
 });
