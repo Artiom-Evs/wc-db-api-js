@@ -9,7 +9,7 @@ select ID AS id, post_author AS author, post_content AS content, post_title AS t
 from wp_posts AS p
 LEFT JOIN wp_postmeta AS pm ON p.ID = pm.post_id AND pm.meta_key = "_thumbnail_id"
 where post_type = "post" AND post_status = "publish" AND post_name != ""
-ORDER BY post_date
+ORDER BY post_date DESC
 LIMIT ? OFFSET ?;
 `;
 
