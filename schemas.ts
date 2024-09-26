@@ -31,7 +31,8 @@ export const CategorySchema = z.object({
     name: z.string().min(1),
     slug: z.string().min(1),
     description: z.string(),
-    count: z.number()
+    count: z.number(),
+    video_url: z.string().optional()
 });
 
 export const AttributeSchema = z.object({
