@@ -3,35 +3,39 @@ import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
 
 const GET_ALL_QUERY = `
-select tt.term_id AS id, tt.parent AS parent_id, t.name, t.slug, tt.description, tt.count
-from wp_term_taxonomy as tt
-join wp_terms as t on t.term_id = tt.term_id
-where tt.taxonomy = "product_cat";
+SELECT tt.term_id AS id, tt.parent AS parent_id, t.name, t.slug, tt.description, tt.count, tm.meta_value AS video_url
+from wp_term_taxonomy AS tt
+join wp_terms AS t ON t.term_id = tt.term_id
+LEFT JOIN wp_termmeta AS tm ON tt.term_id =tm.term_id AND tm.meta_key = "_iframe_url"
+WHERE tt.taxonomy = "product_cat";
 `;
 
 const GET_BY_ID_QUERY = `
-select tt.term_id AS id, tt.parent AS parent_id, t.name, t.slug, tt.description, tt.count
-from wp_term_taxonomy as tt
-join wp_terms as t on t.term_id = tt.term_id
-where tt.taxonomy = "product_cat"
+SELECT tt.term_id AS id, tt.parent AS parent_id, t.name, t.slug, tt.description, tt.count, tm.meta_value AS video_url
+FROM wp_term_taxonomy AS tt
+LEFT JOIN wp_terms AS t on t.term_id = tt.term_id
+LEFT JOIN wp_termmeta AS tm ON tt.term_id = tm.term_id AND tm.meta_key = "_iframe_url"
+WHERE tt.taxonomy = "product_cat"
     AND tt.term_id = ?
 LIMIT 1;
 `;
 
 const GET_BY_SLUG_QUERY = `
-select tt.term_id AS id, tt.parent AS parent_id, t.name, t.slug, tt.description, tt.count
-from wp_term_taxonomy as tt
-join wp_terms as t on t.term_id = tt.term_id
-where tt.taxonomy = "product_cat"
+SELECT tt.term_id AS id, tt.parent AS parent_id, t.name, t.slug, tt.description, tt.count, tm.meta_value AS video_url
+FROM wp_term_taxonomy AS tt
+LEFT JOIN wp_terms as t ON t.term_id = tt.term_id
+LEFT JOIN wp_termmeta AS tm ON tt.term_id = tm.term_id AND tm.meta_key = "_iframe_url"
+WHERE tt.taxonomy = "product_cat"
     AND t.slug = ?
 LIMIT 1;
 `;
 
 const createGetBySlugsQuery= (slugs: string[]) => `
-select tt.term_id AS id, tt.parent AS parent_id, t.name, t.slug, tt.description, tt.count
-from wp_term_taxonomy as tt
-join wp_terms as t on t.term_id = tt.term_id
-where tt.taxonomy = "product_cat"
+SELECT tt.term_id AS id, tt.parent AS parent_id, t.name, t.slug, tt.description, tt.count, tm.meta_value AS video_url
+FROM wp_term_taxonomy AS tt
+LEFT JOIN wp_terms AS t on t.term_id = tt.term_id
+LEFT JOIN wp_termmeta AS tm ON tt.term_id = tm.term_id AND tm.meta_key = "_iframe_url"
+WHERE tt.taxonomy = "product_cat"
     AND t.slug IN (${slugs.map(() => "?").join(", ")})
 LIMIT ${slugs.length};
 `;
@@ -44,12 +48,15 @@ SELECT
     T.slug, 
     TT.parent AS parent_id, 
     TT.description, 
-    TT.count
+    TT.count,
+    tm.meta_value AS video_url
 FROM wp_term_relationships AS TR
-JOIN wp_term_taxonomy AS TT 
+LEFT JOIN wp_term_taxonomy AS TT 
     ON TR.term_taxonomy_id = TT.term_taxonomy_id
 JOIN wp_terms AS T 
 	ON TT.term_id = T.term_id
+LEFT JOIN wp_termmeta AS tm 
+    ON TT.term_id = tm.term_id AND tm.meta_key = "_iframe_url"
 WHERE TR.object_id IN (${ids.map(() => "?").join(", ")}) AND TT.taxonomy = "product_cat";
 `;
 
