@@ -1,6 +1,6 @@
 import { Post, PostsStatistic } from "../schemas";
 import categoriesRepository from "./CategoriesRepository";
-import pool from "./DbConnectionPool";
+import pool from "./MySQLPool";
 import imagesRepository from "./ImagesRepository";
 import RepositoryBase from "./RepositoryBase";
 

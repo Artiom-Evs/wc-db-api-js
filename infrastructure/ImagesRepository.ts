@@ -1,6 +1,6 @@
 import { unserialize } from "php-serialize";
 import { Image } from "../schemas";
-import pool from "./DbConnectionPool";
+import pool from "./MySQLPool";
 import RepositoryBase from "./RepositoryBase";
 
 const createGetImagesByIdsQuery = (ids: number[]) => `

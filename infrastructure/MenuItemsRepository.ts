@@ -1,5 +1,5 @@
 import { Menu, MenuItem } from "../schemas";
-import pool from "./DbConnectionPool";
+import pool from "./MySQLPool";
 import RepositoryBase from "./RepositoryBase";
 
 const GET_ITEMS_BY_MENU_ID_QUERY = `

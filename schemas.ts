@@ -31,7 +31,8 @@ export const CategorySchema = z.object({
     name: z.string().min(1),
     slug: z.string().min(1),
     description: z.string(),
-    count: z.number()
+    count: z.number(),
+    video_url: z.string().nullable().optional()
 });
 
 export const AttributeSchema = z.object({
@@ -104,8 +105,8 @@ export const ProductSchema = z.object({
 
 export const ProductsStatisticSchema = z.object({
     products_count: z.number(),
-    min_price: z.number(),
-    max_price: z.number(),
+    min_price: z.number().optional(),
+    max_price: z.number().optional(),
     attributes: z.array(ProductAttributeSchema).optional()
 });
 
