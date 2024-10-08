@@ -134,7 +134,8 @@ export const ProductSchema = z.object({
     images: z.array(ImageSchema),
     attributes: z.array(ProductAttributeSchema),
     default_attributes: z.array(VariationAttributeSchema),
-    variations: z.array(VariationSchema)
+    variations: z.array(VariationSchema),
+    seo_data: PostSeoDataSchema.nullable()
 });
 
 export const ProductsStatisticSchema = z.object({

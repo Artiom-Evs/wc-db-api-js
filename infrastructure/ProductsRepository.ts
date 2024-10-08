@@ -5,6 +5,7 @@ import { unserialize } from "php-serialize";
 import attributesRepository, { DBProductAttributeTerm, DBVariationAttribute } from "./AttributesRepository";
 import categoriesRepository from "./CategoriesRepository";
 import imagesRepository, { DBImage, ImageSizes } from "./ImagesRepository";
+import seoDataRepository from "./SeoDataRepository";
 
 const GET_ALL_QUERY = `
 CALL GetProductsV3(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
@@ -228,6 +229,7 @@ class ProductsRepository extends RepositoryBase {
         const variationIds = variations.map(v => v.id);
         const images = await imagesRepository.getProductsImages([...productIds, ...variationIds], "medium");
         const variationsImages = await this.getVariationsImages(variations, "medium");
+        const productsSeoData = await seoDataRepository.getPostsData(productIds);
 
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
         const attributesTerms = await attributesRepository.getProductsAttributeTerms(productIds);
@@ -240,6 +242,7 @@ class ProductsRepository extends RepositoryBase {
 
             product.categories = categories.filter(c => c.object_id === product.id) as Category[];
             product.images = images.filter(i => i.parent_id === product.id) as Image[];
+            product.seo_data = productsSeoData.find(s => s.post_id === product.id) ?? null;
             product.variations = variations.filter(v => v.parent_id === product.id);
 
             product.type = product.variations.length === 0 ? "simple" : "variable";
@@ -273,6 +276,7 @@ class ProductsRepository extends RepositoryBase {
         const variationIds = variations.map(v => v.id);
         const images = await imagesRepository.getProductsImages([...ids, ...variationIds], "medium");
         const variationsImages = await this.getVariationsImages(variations, "medium");
+        const productsSeoData = await seoDataRepository.getPostsData(ids);
 
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
         const attributesTerms = await attributesRepository.getProductsAttributeTerms(ids);
@@ -286,6 +290,7 @@ class ProductsRepository extends RepositoryBase {
             product.categories = categories.filter(c => c.object_id === product.id) as Category[];
             product.images = images.filter(i => i.parent_id === product.id) as Image[];
             product.variations = variations.filter(v => v.parent_id === product.id);
+            product.seo_data = productsSeoData.find(s => s.post_id === product.id) ?? null;
 
             product.type = product.variations.length === 0 ? "simple" : "variable";
             product.price = product.price != null ? parseFloat(product.price as any) : null;
@@ -319,6 +324,7 @@ class ProductsRepository extends RepositoryBase {
         const variationIds = variations.map(v => v.id);
         const images = await imagesRepository.getProductsImages([...productIds, ...variationIds], "medium");
         const variationsImages = await this.getVariationsImages(variations, "medium");
+        const productsSeoData = await seoDataRepository.getPostsData(productIds);
 
         const globalAttributes: Attribute[] = await attributesRepository.getAll();
         const attributesTerms = await attributesRepository.getProductsAttributeTerms(productIds);
@@ -332,6 +338,7 @@ class ProductsRepository extends RepositoryBase {
             product.categories = categories.filter(c => c.object_id === product.id) as Category[];
             product.images = images.filter(i => i.parent_id === product.id) as Image[];
             product.variations = variations.filter(v => v.parent_id === product.id);
+            product.seo_data = productsSeoData.find(s => s.post_id === product.id) ?? null;
 
             product.type = product.variations.length === 0 ? "simple" : "variable";
             product.price = product.price != null ? parseFloat(product.price as any) : null;
@@ -405,6 +412,7 @@ class ProductsRepository extends RepositoryBase {
         const images = await imagesRepository.getProductsImages([id, ...variationIds], "large");
         const variationsImages = await this.getVariationsImages(variations, "large");
         const categories = await categoriesRepository.getProductsCategories([id]);
+        const seoData = await seoDataRepository.getPostData(id);
 
         product.type = variations.length === 0 ? "simple" : "variable";
         product.price = product.price != null ? parseFloat(product.price as any) : null;
@@ -423,6 +431,7 @@ class ProductsRepository extends RepositoryBase {
         product.categories = categories as Category[];
         product.images = images.filter(i => i.parent_id === product.id) as Image[];
         product.variations = variations;
+        product.seo_data = seoData;
 
         product.variations.forEach(variation => {
             variation.price = variation.price != null ? parseFloat(variation.price as any) : null;
@@ -448,6 +457,7 @@ const variations = await this.getProductsVariations([product.id]);
         const images = await imagesRepository.getProductsImages([product.id, ...variationIds], "large");
         const variationsImages = await this.getVariationsImages(variations, "large");
         const categories = await categoriesRepository.getProductsCategories([product.id]);
+        const seoData = await seoDataRepository.getPostData(product.id);
 
         product.type = variations.length === 0 ? "simple" : "variable";
         product.price = product.price != null ? parseFloat(product.price as any) : null;
@@ -466,6 +476,7 @@ const variations = await this.getProductsVariations([product.id]);
         product.categories = categories as Category[];
         product.images = images.filter(i => i.parent_id === product.id) as Image[];
         product.variations = variations;
+        product.seo_data = seoData;
 
         product.variations.forEach(variation => {
             variation.price = variation.price != null ? parseFloat(variation.price as any) : null;
