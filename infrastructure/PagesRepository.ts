@@ -1,5 +1,6 @@
 import { PageInfo } from "../schemas";
 import pool from "./DbConnectionPool";
+import seoDataRepository from "./SeoDataRepository";
 import RepositoryBase from "./RepositoryBase";
 
 const GET_ALL_QUERY = `
@@ -24,9 +25,11 @@ class PagesRepository extends RepositoryBase {
     public async getAll(): Promise<PageInfo[]> {
         const [rows] = await this._pool.execute<any[]>(GET_ALL_QUERY, []);
         const pages = rows as PageInfo[];
+        const postsSeoData = await seoDataRepository.getPostsData(pages?.map(p => p.id) ?? []);
 
         pages.forEach(page => {
             page.sections = page.sections ? JSON.parse(page.sections as any) : [];
+            page.seo_data = postsSeoData.find(psd => psd.post_id === page.id) ?? null;
         });
 
         return pages;
@@ -36,8 +39,11 @@ class PagesRepository extends RepositoryBase {
         const [[row]] = await this._pool.execute<any[]>(GET_BY_SLUG_QUERY, [slug]);
         const page = row as PageInfo ?? null;
 
-        if (page)
-            page.sections = page.sections ? JSON.parse(page.sections as any) : [];
+        if (!page)
+            return null;
+
+        page.sections = page.sections ? JSON.parse(page.sections as any) : [];
+        page.seo_data = await seoDataRepository.getPostData(page.id);
 
         return page;
     }

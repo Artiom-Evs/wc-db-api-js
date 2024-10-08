@@ -18,6 +18,40 @@ export type Post = z.infer<typeof PostSchema>;
 export type ProductPriceCirculation = z.infer<typeof ProductPriceCirculationSchema>;
 export type PostsStatistic = z.infer<typeof PostsStatisticSchema>;
 export type MinimizedProduct = z.infer<typeof MinimizedProductSchema>;
+export type PostSeoData = z.infer<typeof PostSeoDataSchema>;
+
+export const IoastBotPostDataSchema = z.object({
+    is_no_index: z.boolean(),
+    is_no_follow: z.boolean(),
+    is_no_archive: z.boolean()
+});
+
+export const IoastTwitterDataSchema = z.object({
+    title: z.string().nullable(),
+    description: z.string().nullable(),
+    image: z.string().nullable(),
+    image_id: z.number().nullable(),
+    image_source: z.string().nullable()
+});
+
+export const IoastOpenGraphDataSchema = z.object({
+    title: z.string().nullable(),
+    description: z.string().nullable(),
+    image: z.string().nullable(),
+    image_id: z.number().nullable(),
+    image_source: z.string().nullable(),
+    image_meta: z.record(z.string(), z.any()).nullable()
+});
+
+export const PostSeoDataSchema = z.object({
+    title: z.string().nullable(),
+    description: z.string().nullable(),
+    breadcrumb_title: z.string(),
+    reading_time_minutes: z.number().nullable(),
+    bot: IoastBotPostDataSchema,
+    twitter: IoastTwitterDataSchema,
+    open_graph: IoastOpenGraphDataSchema
+});
 
 export const ImageSchema = z.object({
     id: z.number(),
@@ -119,7 +153,8 @@ export const PageInfoSchema = z.object({
     title: z.string(),
     content: z.string(),
     menu_order: z.number(),
-    sections: z.array(z.any())
+    sections: z.array(z.any()),
+    seo_data: PostSeoDataSchema.nullable()
 });
 
 export const MenuItemSchema = z.object({
@@ -152,7 +187,8 @@ export const PostSchema = z.object({
     menu_order: z.number(),
     categories: z.array(CategorySchema),
     prev_post: z.string().nullable().optional(),
-    next_post: z.string().nullable().optional()
+    next_post: z.string().nullable().optional(),
+    seo_data: PostSeoDataSchema.nullable()
 });
 
 export const ProductPriceCirculationSchema = z.object({
