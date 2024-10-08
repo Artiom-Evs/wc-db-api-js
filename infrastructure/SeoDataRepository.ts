@@ -1,12 +1,12 @@
 import { unserialize } from "php-serialize";
 import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
-import { PostSeoData } from "schemas";
+import { SeoData } from "schemas";
 
 const DEFAULT_POST_TITLE_TEMPLATE = "%%title%% %%page%% %%sep%% %%sitename%%";
 
 const createGetIoastPostsDataQuery = (postIds: number[]) => `
-SELECT p.post_title, object_id as post_id, title AS title_template, description, breadcrumb_title, blog_id, estimated_reading_time_minutes,
+SELECT p.post_title AS object_title, object_id, title AS title_template, description, breadcrumb_title, blog_id, estimated_reading_time_minutes,
     is_robots_noindex, is_robots_nofollow, is_robots_noarchive, is_robots_noimageindex, is_robots_nosnippet, 
     twitter_title, twitter_image, twitter_description, twitter_image_id, twitter_image_source,
     open_graph_title, open_graph_description, open_graph_image, open_graph_image_id, open_graph_image_source, open_graph_image_meta
@@ -17,15 +17,16 @@ WHERE i.object_id IN (${postIds.map(() => "?").join(",")})
 LIMIT ${postIds.length};
 `;
 
-const GET_IOAST_POST_DATA_QUERY = `
-SELECT p.post_title, object_id as post_id, title AS title_template, description, breadcrumb_title, blog_id, estimated_reading_time_minutes,
+const createGetIoastTermsDataQuery = (postIds: number[]) => `
+SELECT t.name AS object_title, object_id, title AS title_template, description, breadcrumb_title, blog_id, estimated_reading_time_minutes,
     is_robots_noindex, is_robots_nofollow, is_robots_noarchive, is_robots_noimageindex, is_robots_nosnippet, 
     twitter_title, twitter_image, twitter_description, twitter_image_id, twitter_image_source,
     open_graph_title, open_graph_description, open_graph_image, open_graph_image_id, open_graph_image_source, open_graph_image_meta
 FROM wp_yoast_indexable AS i
-LEFT JOIN wp_posts AS p ON i.object_id = p.ID
-WHERE i.object_id = ? AND i.object_type = "post"
-LIMIT 1;
+LEFT JOIN wp_terms AS t ON i.object_id = t.term_id
+WHERE i.object_id IN (${postIds.map(() => "?").join(",")})
+    AND i.object_type = "term"
+LIMIT ${postIds.length};
 `;
 
 const GET_SITENAME_QUERY = `
@@ -43,7 +44,7 @@ LIMIT 1;
 `;
 
 interface DbIoastPostDataRow {
-    post_id: number;
+    object_id: number;
     post_title: string | null;
     title_template: string | null;
     description: string | null;
@@ -67,8 +68,8 @@ interface DbIoastPostDataRow {
     open_graph_image_meta: string | null;
 }
 
-export interface DbPostSeoData extends PostSeoData {
-    post_id: number;
+export interface DbPostSeoData extends SeoData {
+    object_id: number;
 }
 
 /**
@@ -81,40 +82,43 @@ export class SeoDataRepository extends RepositoryBase {
 
         const query = createGetIoastPostsDataQuery(postIds);
         const [rows] = await this._pool.execute(query, postIds);
-        const dbPostsData = rows as DbIoastPostDataRow[];
-        const siteName = await this.getSiteName();
-        const separator = await this.getTitleSeparator();
-
-        const postsData = dbPostsData.map(dpd => {
-            const postData = this.buildPostData(dpd);
-            const titleTemplate = dpd.title_template ?? DEFAULT_POST_TITLE_TEMPLATE;
-            postData.title = this.buildPostTitle(titleTemplate, dpd.post_title ?? postData.breadcrumb_title, siteName, separator);
-
-            return postData;
-        });
+        const dbPostsDataRows = rows as DbIoastPostDataRow[];
+        const postsData = await this.buildSeoData(dbPostsDataRows);
 
         return postsData;
     }
 
-    public async getPostData(postId: number): Promise<DbPostSeoData | null> {
-        const [[row]] = await this._pool.execute<any[]>(GET_IOAST_POST_DATA_QUERY, [postId]);
-        const dbData = row as DbIoastPostDataRow;
+    public async getTermsData(termIds: number[]): Promise<DbPostSeoData[]> {
+        if (termIds.length === 0)
+            return [];
 
-        if (!dbData)
-            return null;
+        const query = createGetIoastTermsDataQuery(termIds);
+        const [rows] = await this._pool.execute(query, termIds);
+        const dbSeoDataRows = rows as DbIoastPostDataRow[];
+        const termsSeoData = await this.buildSeoData(dbSeoDataRows);
 
-        const postData = this.buildPostData(dbData);
-        const titleTemplate = dbData.title_template ?? DEFAULT_POST_TITLE_TEMPLATE;
+        return termsSeoData;
+    }
+
+
+    private async buildSeoData(dbSeoDataRows: DbIoastPostDataRow[]): Promise<DbPostSeoData[]> {
         const siteName = await this.getSiteName();
         const separator = await this.getTitleSeparator();
-        postData.title = this.buildPostTitle(titleTemplate, postData.breadcrumb_title, siteName, separator);
+        const seoData: DbPostSeoData[] = [];
 
-        return postData;
+        for (const dbData of dbSeoDataRows) {
+            const postData = this.buildPostData(dbData);
+            const titleTemplate = dbData.title_template ?? DEFAULT_POST_TITLE_TEMPLATE;
+            postData.title = this.buildPostTitle(titleTemplate, dbData.post_title ?? postData.breadcrumb_title, siteName, separator);
+            seoData.push(postData);
+        }
+
+        return seoData;
     }
 
     private buildPostData(dbData: DbIoastPostDataRow): DbPostSeoData {
         return {
-            post_id: dbData.post_id,
+            object_id: dbData.object_id,
             title: "",
             description: dbData.description,
             breadcrumb_title: dbData.breadcrumb_title,

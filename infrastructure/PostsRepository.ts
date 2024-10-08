@@ -56,7 +56,7 @@ class PostsRepository extends RepositoryBase {
         posts.forEach(post => {
             post.categories = categories.filter(c => c.object_id == post.id);
             post.thumbnail = images.find(i => i.id === (post as any).thumbnail_id)?.src ?? null;
-            post.seo_data = postsSeoData.find(s => s.post_id === post.id) ?? null;
+            post.seo_data = postsSeoData.find(s => s.object_id === post.id) ?? null;
         });
 
         return posts;
@@ -72,7 +72,7 @@ class PostsRepository extends RepositoryBase {
             return null;
 
         const categories = await categoriesRepository.getPostsCategories([post.id]);
-        const postSeoData = await seoDataRepository.getPostData(post.id);
+        const postSeoData = (await seoDataRepository.getPostsData([post.id]))[0] ?? null;
 
         post.categories = categories;
         post.thumbnail = image?.src ?? null;

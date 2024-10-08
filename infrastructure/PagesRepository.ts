@@ -29,7 +29,7 @@ class PagesRepository extends RepositoryBase {
 
         pages.forEach(page => {
             page.sections = page.sections ? JSON.parse(page.sections as any) : [];
-            page.seo_data = postsSeoData.find(psd => psd.post_id === page.id) ?? null;
+            page.seo_data = postsSeoData.find(psd => psd.object_id === page.id) ?? null;
         });
 
         return pages;
@@ -43,7 +43,7 @@ class PagesRepository extends RepositoryBase {
             return null;
 
         page.sections = page.sections ? JSON.parse(page.sections as any) : [];
-        page.seo_data = await seoDataRepository.getPostData(page.id);
+        page.seo_data = (await seoDataRepository.getPostsData([page.id]))[0] ?? null;
 
         return page;
     }

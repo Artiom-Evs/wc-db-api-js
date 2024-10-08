@@ -18,7 +18,7 @@ export type Post = z.infer<typeof PostSchema>;
 export type ProductPriceCirculation = z.infer<typeof ProductPriceCirculationSchema>;
 export type PostsStatistic = z.infer<typeof PostsStatisticSchema>;
 export type MinimizedProduct = z.infer<typeof MinimizedProductSchema>;
-export type PostSeoData = z.infer<typeof PostSeoDataSchema>;
+export type SeoData = z.infer<typeof SeoDataSchema>;
 
 export const IoastBotPostDataSchema = z.object({
     is_no_index: z.boolean(),
@@ -43,7 +43,7 @@ export const IoastOpenGraphDataSchema = z.object({
     image_meta: z.record(z.string(), z.any()).nullable()
 });
 
-export const PostSeoDataSchema = z.object({
+export const SeoDataSchema = z.object({
     title: z.string().nullable(),
     description: z.string().nullable(),
     breadcrumb_title: z.string(),
@@ -66,7 +66,8 @@ export const CategorySchema = z.object({
     slug: z.string().min(1),
     description: z.string(),
     count: z.number(),
-    video_url: z.string().nullable().optional()
+    video_url: z.string().nullable().optional(),
+    seo_data: SeoDataSchema.nullable().optional()
 });
 
 export const AttributeSchema = z.object({
@@ -135,7 +136,7 @@ export const ProductSchema = z.object({
     attributes: z.array(ProductAttributeSchema),
     default_attributes: z.array(VariationAttributeSchema),
     variations: z.array(VariationSchema),
-    seo_data: PostSeoDataSchema.nullable()
+    seo_data: SeoDataSchema.nullable().optional()
 });
 
 export const ProductsStatisticSchema = z.object({
@@ -155,7 +156,7 @@ export const PageInfoSchema = z.object({
     content: z.string(),
     menu_order: z.number(),
     sections: z.array(z.any()),
-    seo_data: PostSeoDataSchema.nullable()
+    seo_data: SeoDataSchema.nullable()
 });
 
 export const MenuItemSchema = z.object({
@@ -189,7 +190,7 @@ export const PostSchema = z.object({
     categories: z.array(CategorySchema),
     prev_post: z.string().nullable().optional(),
     next_post: z.string().nullable().optional(),
-    seo_data: PostSeoDataSchema.nullable()
+    seo_data: SeoDataSchema.nullable()
 });
 
 export const ProductPriceCirculationSchema = z.object({

@@ -1,6 +1,7 @@
 import { Category } from "../schemas";
 import pool from "./DbConnectionPool";
 import RepositoryBase from "./RepositoryBase";
+import seoDataRepository from "./SeoDataRepository";
 
 const GET_ALL_QUERY = `
 SELECT tt.term_id AS id, tt.parent AS parent_id, t.name, t.slug, tt.description, tt.count, tm.meta_value AS video_url
@@ -30,7 +31,7 @@ WHERE tt.taxonomy = "product_cat"
 LIMIT 1;
 `;
 
-const createGetBySlugsQuery= (slugs: string[]) => `
+const createGetBySlugsQuery = (slugs: string[]) => `
 SELECT tt.term_id AS id, tt.parent AS parent_id, t.name, t.slug, tt.description, tt.count, tm.meta_value AS video_url
 FROM wp_term_taxonomy AS tt
 LEFT JOIN wp_terms AS t on t.term_id = tt.term_id
@@ -91,7 +92,12 @@ class CategoriesRepository extends RepositoryBase {
     public async getAll(): Promise<Category[]> {
         const [rows] = await this._pool.execute(GET_ALL_QUERY, []);
         const categories = rows as Category[];
-        
+        const categoriesSeoData = await seoDataRepository.getTermsData(categories.map(c => c.id));
+
+        categories.forEach(category => {
+            category.seo_data = categoriesSeoData.find(s => s.object_id === category.id) ?? null;
+        });
+
         return categories;
     }
 
@@ -102,22 +108,38 @@ class CategoriesRepository extends RepositoryBase {
         const query = createGetBySlugsQuery(slugs);
         const [rows] = await this._pool.execute(query, slugs);
         const categories = rows as Category[];
-        
+        const categoriesSeoData = await seoDataRepository.getTermsData(categories.map(c => c.id));
+
+        categories.forEach(category => {
+            category.seo_data = categoriesSeoData.find(s => s.object_id === category.id) ?? null;
+        });
+
         return categories;
     }
 
     public async getById(id: number): Promise<Category | null> {
-        const [rows] = await pool.execute(GET_BY_ID_QUERY, [ id ]);
+        const [rows] = await pool.execute(GET_BY_ID_QUERY, [id]);
         const categories = rows as Category[];
         const category = categories && Array.isArray(categories) && categories.length > 0 ? categories[0] : null;
+        const seoData = (await seoDataRepository.getTermsData([id]))[0] ?? null;
+
+        if (!category)
+            return null;
+
+        category.seo_data = seoData;
 
         return category;
     }
 
     public async getBySlug(slug: string): Promise<Category | null> {
-        const [rows] = await pool.execute(GET_BY_SLUG_QUERY, [ slug]);
+        const [rows] = await pool.execute(GET_BY_SLUG_QUERY, [slug]);
         const categories = rows as Category[];
         const category = categories && Array.isArray(categories) && categories.length > 0 ? categories[0] : null;
+        
+        if (!category)
+            return null;
+
+        category.seo_data = (await seoDataRepository.getTermsData([category.id]))[0] ?? null;
 
         return category;
     }
@@ -135,8 +157,8 @@ class CategoriesRepository extends RepositoryBase {
     public async getPostsCategories(postIds: number[]): Promise<DBCategory[]> {
         if (postIds.length === 0)
             return [];
-        
-        const query = createGetPostsCategoriesQuery (postIds);
+
+        const query = createGetPostsCategoriesQuery(postIds);
         const [rows] = await this._pool.execute<any[]>(query, postIds);
         return rows as DBCategory[];
     }

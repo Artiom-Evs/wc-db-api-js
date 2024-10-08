@@ -242,7 +242,7 @@ class ProductsRepository extends RepositoryBase {
 
             product.categories = categories.filter(c => c.object_id === product.id) as Category[];
             product.images = images.filter(i => i.parent_id === product.id) as Image[];
-            product.seo_data = productsSeoData.find(s => s.post_id === product.id) ?? null;
+            product.seo_data = productsSeoData.find(s => s.object_id === product.id) ?? null;
             product.variations = variations.filter(v => v.parent_id === product.id);
 
             product.type = product.variations.length === 0 ? "simple" : "variable";
@@ -290,7 +290,7 @@ class ProductsRepository extends RepositoryBase {
             product.categories = categories.filter(c => c.object_id === product.id) as Category[];
             product.images = images.filter(i => i.parent_id === product.id) as Image[];
             product.variations = variations.filter(v => v.parent_id === product.id);
-            product.seo_data = productsSeoData.find(s => s.post_id === product.id) ?? null;
+            product.seo_data = productsSeoData.find(s => s.object_id === product.id) ?? null;
 
             product.type = product.variations.length === 0 ? "simple" : "variable";
             product.price = product.price != null ? parseFloat(product.price as any) : null;
@@ -338,7 +338,7 @@ class ProductsRepository extends RepositoryBase {
             product.categories = categories.filter(c => c.object_id === product.id) as Category[];
             product.images = images.filter(i => i.parent_id === product.id) as Image[];
             product.variations = variations.filter(v => v.parent_id === product.id);
-            product.seo_data = productsSeoData.find(s => s.post_id === product.id) ?? null;
+            product.seo_data = productsSeoData.find(s => s.object_id === product.id) ?? null;
 
             product.type = product.variations.length === 0 ? "simple" : "variable";
             product.price = product.price != null ? parseFloat(product.price as any) : null;
@@ -412,7 +412,7 @@ class ProductsRepository extends RepositoryBase {
         const images = await imagesRepository.getProductsImages([id, ...variationIds], "large");
         const variationsImages = await this.getVariationsImages(variations, "large");
         const categories = await categoriesRepository.getProductsCategories([id]);
-        const seoData = await seoDataRepository.getPostData(id);
+        const seoData = (await seoDataRepository.getPostsData([id]))[0] ?? null;
 
         product.type = variations.length === 0 ? "simple" : "variable";
         product.price = product.price != null ? parseFloat(product.price as any) : null;
@@ -457,7 +457,7 @@ const variations = await this.getProductsVariations([product.id]);
         const images = await imagesRepository.getProductsImages([product.id, ...variationIds], "large");
         const variationsImages = await this.getVariationsImages(variations, "large");
         const categories = await categoriesRepository.getProductsCategories([product.id]);
-        const seoData = await seoDataRepository.getPostData(product.id);
+        const seoData = (await seoDataRepository.getPostsData([product.id]))[0] ?? null;
 
         product.type = variations.length === 0 ? "simple" : "variable";
         product.price = product.price != null ? parseFloat(product.price as any) : null;
